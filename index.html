@@ -1,83 +1,97 @@
-<!DOCTYPE html>
+<!doctype html>
 <html>
   <head>
-    <meta charset='utf-8'>
+    <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="chrome=1">
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-    <link href='https://fonts.googleapis.com/css?family=Architects+Daughter' rel='stylesheet' type='text/css'>
-    <link rel="stylesheet" type="text/css" href="stylesheets/stylesheet.css" media="screen">
-    <link rel="stylesheet" type="text/css" href="stylesheets/pygment_trac.css" media="screen">
-    <link rel="stylesheet" type="text/css" href="stylesheets/print.css" media="print">
+    <title>Pymagor by i-namekawa</title>
 
+    <link rel="stylesheet" href="stylesheets/styles.css">
+    <link rel="stylesheet" href="stylesheets/pygment_trac.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
     <!--[if lt IE 9]>
     <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
     <![endif]-->
-
-    <title>Pymagor by i-namekawa</title>
   </head>
-
   <body>
-    <header>
-      <div class="inner">
+    <div class="wrapper">
+      <header>
         <h1>Pymagor</h1>
-        <h2>Pymagor: a Python based ROI definition tool for calcium imaging data</h2>
-        <a href="https://github.com/i-namekawa/Pymagor" class="button"><small>View project on</small> GitHub</a>
-      </div>
-    </header>
+        <p>Pymagor: a Python based ROI definition tool for calcium imaging data</p>
 
-    <div id="content-wrapper">
-      <div class="inner clearfix">
-        <section id="main-content">
-          <h3>
-<a name="welcome-to-github-pages" class="anchor" href="#welcome-to-github-pages"><span class="octicon octicon-link"></span></a>Welcome to GitHub Pages.</h3>
+        <p class="view"><a href="https://github.com/i-namekawa/Pymagor">View the Project on GitHub <small>i-namekawa/Pymagor</small></a></p>
 
-<p>This automatic page generator is the easiest way to create beautiful pages for all of your projects. Author your page content here using GitHub Flavored Markdown, select a template crafted by a designer, and publish. After your page is generated, you can check out the new branch:</p>
 
-<pre><code>$ cd your_repo_root/repo_name
-$ git fetch origin
-$ git checkout gh-pages
-</code></pre>
+        <ul>
+          <li><a href="https://github.com/i-namekawa/Pymagor/zipball/master">Download <strong>ZIP File</strong></a></li>
+          <li><a href="https://github.com/i-namekawa/Pymagor/tarball/master">Download <strong>TAR Ball</strong></a></li>
+          <li><a href="https://github.com/i-namekawa/Pymagor">View On <strong>GitHub</strong></a></li>
+        </ul>
+      </header>
+      <section>
+        <h1>
+<a name="pymagor" class="anchor" href="#pymagor"><span class="octicon octicon-link"></span></a>Pymagor</h1>
 
-<p>If you're using the GitHub for Mac, simply sync your repository and you'll see the new branch.</p>
+<p>Pymagor: a Python based ROI definition tool for calcium imaging data</p>
 
-<h3>
-<a name="designer-templates" class="anchor" href="#designer-templates"><span class="octicon octicon-link"></span></a>Designer Templates</h3>
+<p>Pymagor is a tool to draw region-of-interest manually on the multi-page TIFF and other supported image files and quickly get a dF/F trace. With user prodided meta-data, Pymagor will automatically align multiple image files for each stimulus condition and field-of-view combinations. You can export a PDF summary report and a mat file (or npz) for later analysis.</p>
 
-<p>We've crafted some handsome templates for you to use. Go ahead and continue to layouts to browse through them. You can easily go back to edit your page before publishing. After publishing your page, you can revisit the page generator and switch to another theme. Your Page content will be preserved if it remained markdown format.</p>
+<h2>
+<a name="supported-platforms" class="anchor" href="#supported-platforms"><span class="octicon octicon-link"></span></a>Supported platform(s)</h2>
 
-<h3>
-<a name="rather-drive-stick" class="anchor" href="#rather-drive-stick"><span class="octicon octicon-link"></span></a>Rather Drive Stick?</h3>
+<p>Pymagor is made with Python and cross-platform libraries. However, at moment, the primaly target platform is Windows XP/7, alghtough it will be relatively easy to support Linux and Mac.</p>
 
-<p>If you prefer to not use the automatic generator, push a branch named <code>gh-pages</code> to your repository to create a page manually. In addition to supporting regular HTML content, GitHub Pages support Jekyll, a simple, blog aware static site generator written by our own Tom Preston-Werner. Jekyll makes it easy to create site-wide headers and footers without having to copy them across every page. It also offers intelligent blog support and other advanced templating features.</p>
+<ul>
+<li>MS-Windows 7, XP (win8 not tested)</li>
+<li>(Ubuntu, may need a few adjustments)</li>
+<li>(Mac? I do not have one)</li>
+</ul>
 
-<h3>
-<a name="authors-and-contributors" class="anchor" href="#authors-and-contributors"><span class="octicon octicon-link"></span></a>Authors and Contributors</h3>
-
-<p>You can <a href="https://github.com/blog/821" class="user-mention">@mention</a> a GitHub username to generate a link to their profile. The resulting <code>&lt;a&gt;</code> element will link to the contributor's GitHub Profile. For example: In 2007, Chris Wanstrath (<a href="https://github.com/defunkt" class="user-mention">@defunkt</a>), PJ Hyett (<a href="https://github.com/pjhyett" class="user-mention">@pjhyett</a>), and Tom Preston-Werner (<a href="https://github.com/mojombo" class="user-mention">@mojombo</a>) founded GitHub.</p>
+<h2>
+<a name="installation" class="anchor" href="#installation"><span class="octicon octicon-link"></span></a>Installation</h2>
 
 <h3>
-<a name="support-or-contact" class="anchor" href="#support-or-contact"><span class="octicon octicon-link"></span></a>Support or Contact</h3>
+<a name="recommended-way-no-python-required" class="anchor" href="#recommended-way-no-python-required"><span class="octicon octicon-link"></span></a>Recommended way (no Python required!)</h3>
 
-<p>Having trouble with Pages? Check out the documentation at <a href="http://help.github.com/pages">http://help.github.com/pages</a> or contact <a href="mailto:support@github.com">support@github.com</a> and we’ll help you sort it out.</p>
-        </section>
+<ul>
+<li>Get the binary installer and follow the instructions in the installation wizard. You <strong>do not</strong> need Python to run Pymagor.</li>
+</ul>
 
-        <aside id="sidebar">
-          <a href="https://github.com/i-namekawa/Pymagor/zipball/master" class="button">
-            <small>Download</small>
-            .zip file
-          </a>
-          <a href="https://github.com/i-namekawa/Pymagor/tarball/master" class="button">
-            <small>Download</small>
-            .tar.gz file
-          </a>
+<h3>
+<a name="hard-way-for-dev" class="anchor" href="#hard-way-for-dev"><span class="octicon octicon-link"></span></a>Hard way (for dev)</h3>
 
-          <p class="repo-owner"><a href="https://github.com/i-namekawa/Pymagor"></a> is maintained by <a href="https://github.com/i-namekawa">i-namekawa</a>.</p>
+<ol>
+<li>Install the latest Python 2.7 series. Python(x,y) recommended on Windows.</li>
+<li>Install all the Dependencies. Python(x,y) covers most of these.
 
-          <p>This page was generated by <a href="https://pages.github.com">GitHub Pages</a> using the Architect theme by <a href="https://twitter.com/jasonlong">Jason Long</a>.</p>
-        </aside>
-      </div>
+<ul>
+<li>pillow</li>
+<li>numpy</li>
+<li>scipy</li>
+<li>matplotlib</li>
+<li>xlrd</li>
+<li>xlwt</li>
+<li>wx</li>
+<li>win32process (MS-Windows only)</li>
+<li>yapsy</li>
+<li>tifffile</li>
+</ul>
+</li>
+<li>Clone the git repogitory (<a href="https://github.com/i-namekawa/Pymagor.git">https://github.com/i-namekawa/Pymagor.git</a>) and you are ready to go. </li>
+</ol>
+
+<p>Note: <strong>Don't</strong> attempt to <code>python setup.py install</code>. Pymagor is a stand-alone program not a module. Just run Pymagor2.py. <code>setup.py</code> is for py2exe packaging only. To build an executable using py2exe, you will need git.exe in the system path.</p>
+
+<h2>
+<a name="license" class="anchor" href="#license"><span class="octicon octicon-link"></span></a>License</h2>
+
+<p>Pymagor is licensed under a 3-clause BSD style license - see the LICENSE.txt file.</p>
+      </section>
+      <footer>
+        <p>This project is maintained by <a href="https://github.com/i-namekawa">i-namekawa</a></p>
+        <p><small>Hosted on GitHub Pages &mdash; Theme by <a href="https://github.com/orderedlist">orderedlist</a></small></p>
+      </footer>
     </div>
-
-  
+    <script src="javascripts/scale.fix.js"></script>
+    
   </body>
 </html>
