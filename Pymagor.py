@@ -659,60 +659,76 @@ class trial2(wx.Frame):
     
     def loadROI(self, fp):
         
-        #parent = self.parent
-        a = sio.loadmat(fp)
-        
-        ind = [n for n, aa in enumerate(a.keys()) if aa.startswith('pymg')]
         planesfound = set([tag[1] for tag in self.tag])
-            
-        roi_ctgr = 'Cell'
         
-        if ind: # roi v2 or above
-            sname = a.keys()[ind[0]]
-            if 'ROI_planes' in a[sname].dtype.names: # pymagor2.6.* or under
-                roiz = [str(aa[0]) for aa in a[sname]['ROI_planes'][0][0][0]]
-                _ind = [n for n,aa in enumerate(roiz) if aa in planesfound]
+        if fp.endswith('mat'):
+        
+            a = sio.loadmat(fp)
+            
+            ind = [n for n, aa in enumerate(a.keys()) if aa.startswith('pymg')]
+            
                 
-                if not _ind:
-                    print 'Field-of-Views found in matfile:', roiz
-                    print 'Current Field-of-Views opened:', planesfound
-                    self.parent.showmessage('None of\n%s in the mat file were found in \n%s that are opened' % (roiz, list(planesfound)) )
-                    return
-                roipoly = [zip(aa[:,0], aa[:,1]) for aa in a[sname]['ROI_polygons'][0][0][0]]
-                #roipoly = [roi for roi, zz in zip(roipoly, roiz) if zz in planesfound]
-                roipoly = [roipoly[n] for n in _ind]
-                roiz = [roiz[n] for n in _ind]
-                
-                if 'ROI_categories' in a[sname].dtype.names:
-                    roi_ctgr = [ str(aa[0]) for aa in a[sname]['ROI_categories'][0][0][0] ]
+            
+            
+            if ind: # roi v2 or above
+                sname = a.keys()[ind[0]]
+                if 'ROI_planes' in a[sname].dtype.names: # pymagor2.6.* or under
+                    roiz = [str(aa[0]) for aa in a[sname]['ROI_planes'][0][0][0]]
+                    _ind = [n for n,aa in enumerate(roiz) if aa in planesfound]
+                    
+                    if not _ind:
+                        print 'Field-of-Views found in matfile:', roiz
+                        print 'Current Field-of-Views opened:', planesfound
+                        self.parent.showmessage('None of\n%s in the mat file were found in \n%s that are opened' % (roiz, list(planesfound)) )
+                        return
+                    roipoly = [zip(aa[:,0], aa[:,1]) for aa in a[sname]['ROI_polygons'][0][0][0]]
+                    roipoly = [roipoly[n] for n in _ind]
+                    roiz = [roiz[n] for n in _ind]
+                    
+                    if 'ROI_categories' in a[sname].dtype.names:
+                        roi_ctgr = [ str(aa[0]) for aa in a[sname]['ROI_categories'][0][0][0] ]
+                        roi_ctgr = [roi_ctgr[n] for n in _ind]
+                    
+                else: # then probably roiv3 and mat file format of pymagor 2.7 or above
+                    ROIs = a[sname][0][0]['ROIs'][0]
+                    roiz = [str(aa[0]) for aa in ROIs['ROI_Field_of_views'][0][0]]
+                    _ind = [n for n,aa in enumerate(roiz) if aa in planesfound]
+                    if not _ind:
+                        print 'Field-of-Views found in matfile:', roiz
+                        print 'Current Field-of-Views opened:', planesfound
+                        self.parent.showmessage('None of\n%s in the mat file were found in \n%s that are opened' % (roiz, list(planesfound)) )
+                        return
+                    roipoly = [zip(aa[:,0], aa[:,1]) for aa in ROIs['ROI_polygons'][0][0]]
+                    roipoly = [roipoly[n] for n in _ind]
+                    roiz = [roiz[n] for n in _ind]
+                    
+                    roi_ctgr = [ str(aa[0]) for aa in ROIs['ROI_categories'][0][0] ]
                     roi_ctgr = [roi_ctgr[n] for n in _ind]
                 
-                #print 'ind,  planesfound, roiz, roipoly, roi_ctgr', ind,  planesfound, roiz, roipoly, roi_ctgr
-            
-            else: # then probably roiv3 and mat file format of pymagor 2.7 or above
-                ROIs = a[sname][0][0]['ROIs'][0]
-                roiz = [str(aa[0]) for aa in ROIs['ROI_planes'][0][0]]
-                _ind = [n for n,aa in enumerate(roiz) if aa in planesfound]
-                if not _ind:
-                    print 'Field-of-Views found in matfile:', roiz
-                    print 'Current Field-of-Views opened:', planesfound
-                    self.parent.showmessage('None of\n%s in the mat file were found in \n%s that are opened' % (roiz, list(planesfound)) )
-                    return
-                roipoly = [zip(aa[:,0], aa[:,1]) for aa in ROIs['ROI_polygons'][0][0]]
-                #roipoly = [roi for roi, zz in zip(roipoly, roiz) if zz in planesfound]
-                roipoly = [roipoly[n] for n in _ind]
-                roiz = [roiz[n] for n in _ind]
+            else: # for roi v1 file, use the current plane name
                 
-                roi_ctgr = [ str(aa[0]) for aa in ROIs['ROI_categories'][0][0] ]
-                roi_ctgr = [roi_ctgr[n] for n in _ind]
+                roiz = self.changetitle(wantz=True)
+                roi_ctgr = 'Cell'
+                h = a['F'].shape[0]
+                roipoly = [ zip(aa[:,0].astype('int'), h-aa[:,1].astype('int')) 
+                            for aa in a['ROIs'][0] ]
+        
+        elif fp.endswith('npz'):
             
-        else: # for v1 file, use current plane name
+            a = np.load(fp)
+            if 'ROI_Field_of_views' in a.keys():  # renamed after public release
+                roiz = a['ROI_Field_of_views'].tolist()
+            else:
+                roiz = a['ROI_planes'].tolist()
+            _ind = [n for n,aa in enumerate(roiz) if aa in planesfound]
             
-            roiz = self.changetitle(wantz=True)
+            roiz = [roiz[n] for n in _ind]
             
-            h = a['F'].shape[0]
-            roipoly = [ zip(aa[:,0].astype('int'), h-aa[:,1].astype('int')) 
-                        for aa in a['ROIs'][0] ]
+            roipoly = a['ROI_polygons'].tolist()
+            roipoly = [roipoly[n] for n in _ind]
+            
+            roi_ctgr = [aa for aa in a['ROI_categories']]
+            roi_ctgr = [roi_ctgr[n] for n in _ind]
         
         if self.parent.appendROI.IsChecked() and self.ROI.data:
             self.ROI.add(roipoly, z=roiz, category=roi_ctgr)
@@ -1716,7 +1732,7 @@ class trial2(wx.Frame):
             if dlg.ShowModal() == wx.ID_OK:
                 fp = dlg.GetPath()
                 roicell, roiplane, roicategory = pack2npobj(self.ROI)
-                dct = {'ROI_polygons':roicell, 'ROI_planes':roiplane, 'ROI_categories':roicategory}
+                dct = {'ROI_polygons':roicell, 'ROI_Field_of_views':roiplane, 'ROI_categories':roicategory}
                 fname = os.path.basename(fp)[:-4]
                 sname = self.validate_sname(fname)
                 sio.savemat(fp,{sname : dct}, oned_as='row', do_compression=True)
@@ -1845,7 +1861,8 @@ class trial2(wx.Frame):
     
     def export(self, event):
         
-        print self.tag
+        if verbose:
+            print self.tag
         
         if self.ROI.data == []:
             self.parent.showmessage('At least one ROI is required for export')
@@ -2141,13 +2158,15 @@ class trial2(wx.Frame):
 
         pp.close()
         
-        return dFoFtracesPool, rawtracesPool, avgdFoF_acrosstrials, avgF_acrosstrials, names4avgdFoF_acrosstrials, avg_tracesP
+        return dFoFtracesPool, rawtracesPool, avgdFoF_acrosstrials, \
+            avgF_acrosstrials, names4avgdFoF_acrosstrials, avg_tracesP
 
 
     def savemat(self, fname, Pooled):
         """ saving into mat file """
         
-        dFoFtracesPool, rawtracesPool, avgdFoF_acrosstrials, avgF_acrosstrials, names4avgdFoF_acrosstrials, avg_tracesP = Pooled
+        dFoFtracesPool, rawtracesPool, avgdFoF_acrosstrials, \
+        avgF_acrosstrials, names4avgdFoF_acrosstrials, avg_tracesP = Pooled
         
         # sanity check for frame number consistency
         if len(np.unique([d.shape[0] for d,z,r in dFoFtracesPool if d is not None])) > 1:
@@ -2242,7 +2261,7 @@ class trial2(wx.Frame):
                     },
                 'ROIs' : {
                     'ROI_polygons' : matpoly,
-                    'ROI_planes' : matplane,
+                    'ROI_Field_of_views' : matplane,
                     'ROI_categories' : matctgr,
                     }
                 }

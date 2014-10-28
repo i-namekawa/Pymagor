@@ -3,7 +3,7 @@ Pymagor
 
 Pymagor: a Python based ROI definition tool for calcium imaging data
 
-Pymagor is a tool to draw region-of-interest manually on the multi-page TIFF and other supported image files and quickly get a dF/F trace. With user prodided meta-data, Pymagor will automatically align multiple image files for each stimulus condition and field-of-view combinations. You can export a PDF summary report and a mat file (or npz) for later analysis.
+Pymagor is a tool (windows binary runs without python installed) to draw region-of-interest manually on the multi-page TIFF and other supported image files and quickly get a dF/F trace. With user prodided meta-data, Pymagor will automatically align multiple image files for each stimulus condition and field-of-view combinations. You can export a PDF summary report and a mat file (or npz) for later analysis.
 
 Supported platform(s)
 ------
