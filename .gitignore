@@ -41,3 +41,17 @@ Icon
 Network Trash Folder
 Temporary Items
 .apdisk
+
+custom-boot-script.py
+git.exe
+inno-setup/installer.iss
+inno-setup/setup.exe
+odor_plane_names.csv
+test.csv
+testdata/40frames001.tif
+testdata/beads004.tif
+testdata/EngGCaMP2xOL_images.tif
+testdata/test_50to100_.tif
+testdata/test_50to100_shift x5 y-9.tif
+testdata/Untitled-1.tif
+*.pyc

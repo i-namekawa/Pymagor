@@ -664,12 +664,12 @@ class trial2(wx.Frame):
         
         ind = [n for n, aa in enumerate(a.keys()) if aa.startswith('pymg')]
         planesfound = set([tag[1] for tag in self.tag])
-        
+            
         roi_ctgr = 'Cell'
         
         if ind: # roi v2 or above
             sname = a.keys()[ind[0]]
-            if 'ROI_planes' in a[sname]: # pymagor2.6.* or under
+            if 'ROI_planes' in a[sname].dtype.names: # pymagor2.6.* or under
                 roiz = [str(aa[0]) for aa in a[sname]['ROI_planes'][0][0][0]]
                 _ind = [n for n,aa in enumerate(roiz) if aa in planesfound]
                 
