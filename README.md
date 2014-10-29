@@ -9,10 +9,11 @@ Pymagor is a tool (windows binary runs without python installed) to draw region-
 
 Supported platform(s)
 ------
-Pymagor is made with Python and cross-platform libraries. However, at moment, the primaly target platform is Windows XP/7, alghtough it will be relatively easy to support Linux and Mac.
+Pymagor is built upon Python and cross-platform libraries, meaning that it will be relatively easy to support Linux and Mac.
+However, at moment, Windows XP/7 is supported.
 * MS-Windows 7, XP (win8 not tested)
-* (Ubuntu, may need a few adjustments)
-* (Mac? I do not have one)
+* (Ubuntu? a previous version worked under Lucid. it may still work?)
+* (Mac? I do not have one to test)
 
 
 Installation
@@ -45,4 +46,14 @@ License
 -------
 
 Pymagor is licensed under a 3-clause BSD style license - see the LICENSE.txt file.
+
+Screenshots
+------
+![TrialViewer](https://github.com/i-namekawa/Pymagor/blob/images/images/TrialViewer.jpg)
+![QuickPlot](https://github.com/i-namekawa/Pymagor/blob/images/images/QuickPlot.jpg)
+![BatchLauncher](https://github.com/i-namekawa/Pymagor/blob/images/images/BatchLauncher.jpg)
+
+
+
+
 
