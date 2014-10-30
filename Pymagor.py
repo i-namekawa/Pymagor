@@ -2985,7 +2985,7 @@ class MainFrame(wx.Frame):
         
         # Help
         Help = wx.Menu()
-        Help.Append(302, 'Go to the download website on GitHub')
+        Help.Append(302, 'Download page on GitHub')
         Help.Append(303, '&Online documentation (wiki)')
         Help.Append(304, '&Go to User file folder (error log here)')
         Help.Append(301, 'About / Shortcut-keys')
@@ -3598,16 +3598,16 @@ class MainFrame(wx.Frame):
 - Imagor3 acquired ior camera data, Micro-Manager tiff, ImageJ tiff (Otto Fajardo)     
 
 Key bindings
-"R" : start / stop ROI drawing mode
-"S" : start / stop ROI shifting mode
-"D" : start / stop ROI deleting mode
-"Z" : start zooming mode
-"E" : zoom-out to the entire view
-"H" : start hand panning mode. Drag to move around
-"V" : play / stop the video
-"B" : rewind back to the beginning
-"Q" : quickly plot the dF/F traces only for the current image
-"W" : enable scaling mode with the mouse wheel while holding 'W'
+R : start / stop ROI drawing mode
+S : start / stop ROI shifting mode
+D : start / stop ROI deleting mode
+Z : start zooming mode
+E : zoom-out to the entire view
+H : start hand panning mode. Drag to move around
+V : play / stop the video
+B : rewind back to the beginning
+Q : quickly plot the dF/F traces only for the current image
+W : enable scaling mode with the mouse wheel while holding 'W'
 Ctrl+C: Copy image to clipboard
 Ctrl+O: Open file dialog for image or csv file
 1-9 : jump to one of 9 view modes.
@@ -3628,38 +3628,16 @@ Mouse gestures
     increase/decrease the spin control "z" on the top-left to 
     switch between trials or frames'''
            
-            info.License = '''BSD license (3-clause)
-Copyright (c) 2011-, Iori Namekawa. 
+            info.License = '''Copyright (c) 2011-, Iori Namekawa.
 All rights reserved.
 
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-
-    * Redistributions of source code must retain the above copyright
-      notice, this list of conditions and the following disclaimer.
-    * Redistributions in binary form must reproduce the above copyright
-      notice, this list of conditions and the following disclaimer in the
-      documentation and/or other materials provided with the distribution.
-    * Neither the name of Pymagor nor the names of its contributors may be 
-      used to endorse or promote products derived from this software 
-      without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED. IN NO EVENT SHALL PYMAGOR OR CONTRIBUTORS BE LIABLE FOR ANY
-DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
+Pymagor is licensed under BSD license (3-clause, see LICENSE.txt)
 
 Video support provided by FFMEPG
 
 Icon arts from findicons.com
 '''
+
             wx.AboutBox(info)
         
         elif _id == 302:

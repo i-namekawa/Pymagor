@@ -71,6 +71,7 @@ for data in matplotlib.get_py2exe_datafiles():
 
 
 includes = ['matplotlib.backends.backend_qt4agg', 
+            'babel.numbers', 
             '_tifffile', 
             'tifffile', 
             'scipy.io.matlab.streams', 
