@@ -30,6 +30,7 @@ from __future__ import with_statement
 from pprint import pprint
 import ConfigParser, csv, getpass, itertools, os, platform
 import re, subprocess, sys, time, webbrowser
+myOS = platform.system()
 
 # 3rd party libraries
 from PIL import Image
@@ -68,7 +69,8 @@ import wx.lib.delayedresult as delayedresult
 import wx.lib.mixins.listctrl as listmix
 import wx.py
 
-from win32process import CREATE_NO_WINDOW
+if myOS == 'windows':
+    from win32process import CREATE_NO_WINDOW
 
 from yapsy.PluginManager import PluginManager
 
@@ -89,7 +91,6 @@ with open('resources/version.info', 'r') as f:
 # hardcoding the difference between xp and win7
 # because wx2.8 does not support vista and above yet
 # until I managed to update to wx3.0
-myOS = platform.system()
 if myOS == 'Windows':
     magnifier = wx.CURSOR_MAGNIFIER
     if 'HOMESHARE' in os.environ.keys():
