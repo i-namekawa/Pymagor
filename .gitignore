@@ -56,3 +56,4 @@ testdata/test_50to100_shift x5 y-9.tif
 testdata/Untitled-1.tif
 *.pyc
 geany_run_script.bat
+msvcp90.dll

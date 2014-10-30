@@ -166,7 +166,7 @@ setup(
                           "packages": packages,
                           "dll_excludes": dll_excludes,
                           "bundle_files": 2,
-                          "dist_dir": dist_dir[:40],
+                          "dist_dir": dist_dir,
                           "xref": False,
                           "skip_archive": False,
                           "ascii": False,

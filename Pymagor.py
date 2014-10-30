@@ -59,8 +59,9 @@ import xlwt  # writing excel
 
 if not hasattr(sys, 'frozen'):
     import wxversion
-    wxversion.select(('2.8'))
+    wxversion.select('2.8-msw-unicode')
 import wx
+
 import wx.aui as AUI
 import wx.lib.agw.floatspin as FS
 import wx.lib.delayedresult as delayedresult
@@ -90,8 +91,8 @@ with open('resources/version.info', 'r') as f:
 # until I managed to update to wx3.0
 myOS = platform.system()
 if myOS == 'Windows':
+    magnifier = wx.CURSOR_MAGNIFIER
     if 'HOMESHARE' in os.environ.keys():
-        magnifier = wx.CURSOR_MAGNIFIER
         homedir = os.path.join(os.environ['HOMESHARE'], 'pymagor')
         # using HOMESHARE rather than USERPROFILE here, because
         # Group policy may redirect USERPROFILE to HOMESHARE when exists
