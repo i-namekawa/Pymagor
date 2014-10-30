@@ -21,7 +21,7 @@ Installation
 
 ### Recommended way (no Python required!)
 
-* Get the binary installer and follow the instructions in the installation wizard. You **do not** need Python to run Pymagor.
+* Get the [binary installer](https://github.com/i-namekawa/Pymagor/releases) and follow the instructions in the installation wizard. You **do not** need Python to run Pymagor.
 
 ### Hard way (for dev)
 
