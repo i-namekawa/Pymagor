@@ -17,6 +17,7 @@ import shutil
 
 
 # /* Added by Iori Namekawa
+import numpy # for MPL warning this MAY help...
 import matplotlib # for data_files
 from getver import *
 create_infofile()

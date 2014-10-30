@@ -1,7 +1,7 @@
 Pymagor
 =======
 
-![](https://github.com/i-namekawa/Pymagor/blob/images/images/Main-OnlineAnalysisSheet.jpg)
+![PymagorScreenshot](https://github.com/i-namekawa/Pymagor/blob/images/images/Main-OnlineAnalysisSheet.jpg)
 
 Pymagor: a Python based ROI definition tool for calcium imaging data
 
@@ -10,9 +10,9 @@ Pymagor is a tool (windows binary runs without python installed) to draw region-
 Supported platform(s)
 ------
 Pymagor is built upon Python and cross-platform libraries, meaning that it will be relatively easy to support Linux and Mac.
-However, at moment, Windows XP/7 is supported.
-* MS-Windows 7, XP (win8 not tested)
-* (Ubuntu? a previous version worked under Lucid. it may still work?)
+However, at moment, only Windows XP/7 is supported.
+* MS-Windows 7, XP (seems working on win8 too. But didn't manage to run on [windows93](http://www.windows93.net/))
+* (Ubuntu? a previous version worked under Lucid. It may still work?)
 * (Mac? I do not have one to test)
 
 
@@ -39,13 +39,14 @@ Installation
   * tifffile
 3. Clone the git repogitory (https://github.com/i-namekawa/Pymagor.git) and you are ready to go. 
 
-Note: **Don't** attempt to `python setup.py install`. Pymagor is a stand-alone program not a module. Just run Pymagor2.py. `setup.py` is for py2exe packaging only. To build an executable using py2exe, you will need git.exe in the system path.
+Note: Please **don't** attempt to `python setup.py install`. `setup.py` is for py2exe packaging only. Pymagor is a stand-alone program not a module. Just run Pymagor2.py. To build an executable using py2exe, you will need git.exe in the system path.
 
 
 License
 -------
 
 Pymagor is licensed under a 3-clause BSD style license - see the LICENSE.txt file.
+
 
 Screenshots
 ------
