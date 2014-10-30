@@ -7,12 +7,12 @@ Pymagor: a Python based ROI definition tool for calcium imaging data
 
 Pymagor is a tool (windows binary runs without python installed) to draw region-of-interest manually on the multi-page TIFF and other supported image files and quickly get a dF/F trace. With user provided meta-data, Pymagor will automatically align multiple image files for each stimulus condition and field-of-view combinations. You can export a PDF summary report and a mat file (or npz) for later analysis.
 
-Supported platform(s)
+Supported platforms
 ------
 Pymagor is built upon Python and cross-platform libraries, meaning that it will be relatively easy to support Linux and Mac.
 However, at moment, only Windows XP/7 is supported.
-* MS-Windows 7, XP (seems working on win8 too. But didn't manage to run on [windows93](http://www.windows93.net/))
-* (Ubuntu? a previous version worked under Lucid. It may still work?)
+* MS-Windows 7, XP (win8 seems fine too. [windows93](http://www.windows93.net/) not supported.)
+* Ubuntu 14.04 (Working ok but with some GTK errors)
 * (Mac? I do not have one to test)
 
 
