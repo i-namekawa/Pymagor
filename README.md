@@ -33,7 +33,7 @@ Installation
   * matplotlib
   * xlrd
   * xlwt
-  * wx
+  * wx (2.8 series)
   * win32process (MS-Windows only)
   * yapsy
   * tifffile
