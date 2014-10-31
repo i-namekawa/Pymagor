@@ -12,10 +12,10 @@ For more detail, check [the wiki documentation] (https://github.com/i-namekawa/P
 Supported platforms
 ------
 Pymagor is built upon Python and cross-platform libraries, meaning that it will be relatively easy to support Linux and Mac.
-However, at moment, only Windows XP/7 is supported.
-* MS-Windows 7, XP (win8 seems fine too. [windows93](http://www.windows93.net/) not supported.)
-* Ubuntu 14.04 (The source runs ok with some GTK errors)
-* (Mac: The source seems to run on Darwin but not yet fully tested. )
+However, at the moment, only Windows XP/7 is supported.
+* MS-Windows 7, XP (win8 seems fine too. [windows93](http://www.windows93.net/) not supported)
+* Ubuntu 14.04 (The source runs ok with some GTK warnings)
+* (Mac: The source manages to run on Darwin but need some GUI element adjustments)
 
 
 Installation
