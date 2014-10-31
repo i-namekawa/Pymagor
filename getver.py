@@ -18,7 +18,7 @@ def lastcomment():
  
 def create_infofile():
     with open('resources/version.info', 'w') as f:
-        f.write(getver())
+        f.write(str(int(getver())+1)) # rev before commit is 1 less.
         f.write('\n')
         f.write(gethex())
 
