@@ -41,11 +41,13 @@ import numpy as np
 import scipy.ndimage
 import scipy.io as sio
 from scipy.sparse.csgraph import _validation  # # for py2exe
-from scipy.spatial import ConvexHull
-#import scipy.stats as stats
+if int(scipy.__version__.split('.')[1])>11:
+    from scipy.spatial import ConvexHull
 
 import matplotlib
-matplotlib.use('Qt4Agg')
+if myOS in ('Windows', 'Linux'): # until sip can be installed on OS X Darwin.
+    matplotlib.use('Qt4Agg')
+
 import matplotlib.cm as cm
 import matplotlib.pyplot as plt
 
@@ -53,7 +55,8 @@ from matplotlib.patches import Polygon
 from matplotlib.backends.backend_pdf import PdfPages
 from matplotlib.font_manager import FontProperties
 matplotlib.rcParams['figure.facecolor'] = 'w'
-matplotlib.rcParams['figure.max_open_warning'] = 200
+if myOS in ('Windows', 'Linux'): # until I can update matplotlib on OS X Darwin.
+    matplotlib.rcParams['figure.max_open_warning'] = 200
 
 import xlrd  # reading excel
 import xlwt  # writing excel
@@ -69,7 +72,7 @@ import wx.lib.delayedresult as delayedresult
 import wx.lib.mixins.listctrl as listmix
 import wx.py
 
-if myOS == 'windows':
+if myOS == 'Windows':
     from win32process import CREATE_NO_WINDOW
 
 from yapsy.PluginManager import PluginManager
@@ -105,7 +108,7 @@ if myOS == 'Windows':
     else:  # resizable boarder is thicker on windows 7.
         ymargin = (25, 32+8)  # 60
         xmargin = 12+8
-elif myOS == 'Linux':
+else:
     magnifier = wx.CURSOR_SIZEWE
     homedir = os.path.join(os.path.expanduser('~'), 'pymagor')
 
@@ -2854,7 +2857,7 @@ class MainFrame(wx.Frame):
         self.log.SetToolTip(wx.ToolTip(info))
         sys.stdout = RedirectText(self.log)
         
-        if myOS == 'Linux':
+        if myOS is not 'Windows':
             self.log.SetFont(wx.Font(9, wx.SWISS, wx.NORMAL, wx.NORMAL))
         if verbose:
             print ini_log
@@ -4076,7 +4079,7 @@ class ParamsPanel(wx.Panel):
         
         wx.Panel.__init__(self, parent, -1, size=(202,245))
         self.parent = parent
-        if platform.system() == 'Linux':
+        if myOS is not 'Windows':
             self.SetFont(wx.Font(7, wx.SWISS, wx.NORMAL, wx.NORMAL))
         
         x,y = 5, 20
