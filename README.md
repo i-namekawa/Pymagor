@@ -12,8 +12,8 @@ Supported platforms
 Pymagor is built upon Python and cross-platform libraries, meaning that it will be relatively easy to support Linux and Mac.
 However, at moment, only Windows XP/7 is supported.
 * MS-Windows 7, XP (win8 seems fine too. [windows93](http://www.windows93.net/) not supported.)
-* Ubuntu 14.04 (Working ok but with some GTK errors)
-* (Mac? I do not have one to test)
+* Ubuntu 14.04 (The source runs ok with some GTK errors)
+* (Mac: The source seems to run on Darwin but not yet fully tested. )
 
 
 Installation
@@ -21,15 +21,15 @@ Installation
 
 ### Recommended way (no Python required!)
 
-* Get the [binary installer](https://github.com/i-namekawa/Pymagor/releases) and follow the instructions in the installation wizard. You **do not** need Python to run Pymagor.
+* Get the [Windows binary installer](https://github.com/i-namekawa/Pymagor/releases) and follow the instructions in the installation wizard. You **do not** need Python to run Pymagor.
 
-### Hard way (for dev)
+### Hard way (for dev and Linux/Mac)
 
 1. Install the latest Python 2.7 series. Python(x,y) recommended on Windows.
 2. Install all the Dependencies. Python(x,y) covers most of these.
   * pillow
   * numpy
-  * scipy
+  * scipy (0.12.0 or greater)
   * matplotlib
   * xlrd
   * xlwt
