@@ -3,7 +3,7 @@ Pymagor: a Python based calcium imaging data analysis tool.
 
 ![PymagorScreenshot](https://github.com/i-namekawa/Pymagor/blob/images/images/Main-OnlineAnalysisSheet.jpg)
 
-### "ROI drawing made fun gets done"
+### "ROI drawing made fun"
 
 Pymagor is a stand alone application that aims to automate many of labor intensive steps of calcium imaging data analysis and provide a user friendly environment for manual ROI drawing. Pymagor can open any multi-page TIFF files (and other supported files, see below) and you can quickly check dF/F image (either as frame average or movie) and the basal fluorescence image for morphology (raw frame or frame average). Pymagor will automatically align multiple image files for each stimulus and field-of-view combinations. You can export a PDF summary report and a mat file (or npz) for later analysis.
 
@@ -41,7 +41,7 @@ Installation
   * tifffile
 3. Clone the git repogitory (https://github.com/i-namekawa/Pymagor.git) and you are ready to go. 
 
-Note: Please **don't** attempt to `python setup.py install`. `setup.py` is for py2exe packaging only. Pymagor is a stand-alone program not a module. Just run Pymagor2.py. To build an executable using py2exe, you will need git.exe in the system path.
+Note: Pymagor is a stand-alone program not a module. Just run Pymagor2.py.
 
 
 License
