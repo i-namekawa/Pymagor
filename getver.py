@@ -21,6 +21,7 @@ def create_infofile():
         f.write(str(int(getver())+1)) # rev before commit is 1 less.
         f.write('\n')
         f.write(gethex())
+        f.write('\n')
 
 if __name__ == '__main__':
     
