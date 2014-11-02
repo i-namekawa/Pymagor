@@ -12,7 +12,7 @@ For more details, check [the wiki documentation] (https://github.com/i-namekawa/
 Supported platforms
 ------
 Pymagor is built upon Python and cross-platform libraries, meaning that it will be relatively easy to support Linux and Mac.
-However, Windows 7 is recommended. All libraries used in Pymagor are ready for 64-bit (except on Mac).
+However, only Windows 7 will be supported. All libraries used in Pymagor are ready for 64-bit (except on Mac until I upgrade to wxPython3.0).
 * MS-Windows XP/7/8 ([Windows93](http://www.windows93.net/) not supported)
 * (Ubuntu 14.04: It can run from source with some GTK warnings)
 * (Mac: It manages to run from source on Darwin but it needs some more GUI element adjustments. wxPython2.8 on Mac requires 32-bit Python. So, it's better to install a separate Python2.7 32-bit and install all the dependencies there.)
@@ -23,27 +23,29 @@ Installation
 
 ### Recommended way for Windows (no Python required!)
 
-* Get the [Windows 32-bit binary installer](https://github.com/i-namekawa/Pymagor/releases) and follow the instructions in the installation wizard. You **do not** need Python to run Pymagor.
+* Get the [Windows 32-bit binary installer](https://github.com/i-namekawa/Pymagor/releases) and follow the instructions in the installation wizard. You **do not** need Python to run Pymagor. It comes with an uninstaller.
 
-The 64-bit binary is possible but was too huge (>200 MB, due to numpy/scipy dlls). So, if you need 64-bit, run it from source.
+The 64-bit binary is possible to build but was too huge (>200 MB, due to numpy/scipy dlls). So, if you need 64-bit, you should run from source.
 
-### Hard way (for development and Linux/Mac or want to run on 64-bit Python)
+### Hard way (for development, on Linux/Mac, and to run on 64-bit Python)
 
 1. Install the latest Python 2.7 series. Python(x,y) recommended on Windows.
 2. Install all the Dependencies. Python(x,y) covers most of these.
   * pillow
   * numpy
-  * scipy (0.12.0 or greater)
+  * scipy (v0.12.0 or greater)
   * matplotlib
   * xlrd
   * xlwt
-  * wx (2.8 series)
+  * wx (v2.8.12.1)
   * win32process (MS-Windows only)
   * yapsy
   * tifffile
-3. Clone the git repogitory (https://github.com/i-namekawa/Pymagor.git) and you are ready to go. 
+3. Clone the git repogitory (https://github.com/i-namekawa/Pymagor.git) and run Pymagor2.py
 
-Note: Pymagor is a stand-alone program not a module. Just run Pymagor2.py.
+Bug report
+-------
+Please use [Issue tracker](https://github.com/i-namekawa/Pymagor/issues) and paste the content of pymagor.log whenever possible. pymagor.log can be found from Help menu -> Go to User folder.
 
 
 License
@@ -57,8 +59,3 @@ Screenshots
 ![TrialViewer](https://github.com/i-namekawa/Pymagor/blob/images/images/TrialViewer.jpg)
 ![QuickPlot](https://github.com/i-namekawa/Pymagor/blob/images/images/QuickPlot.jpg)
 ![BatchLauncher](https://github.com/i-namekawa/Pymagor/blob/images/images/BatchLauncher.jpg)
-
-
-
-
-
