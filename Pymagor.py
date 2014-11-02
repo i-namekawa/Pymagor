@@ -109,6 +109,8 @@ if myOS == 'Windows':
         ymargin = (25, 32+8)  # 60
         xmargin = 12+8
 else:
+    ymargin = (24, 32)
+    xmargin = 12
     magnifier = wx.CURSOR_SIZEWE
     homedir = os.path.join(os.path.expanduser('~'), 'pymagor')
 
@@ -142,7 +144,7 @@ else:
     
     min_fontsize = 7
     pickle_stacked = False
-    verbose = True
+    verbose = False
     fit2Toolbar_width = True
     if myOS == 'Linux':
         lastdir = os.path.expanduser('~')
@@ -3038,7 +3040,7 @@ class MainFrame(wx.Frame):
         
     def loadcsv(self, event, fp=None):
         
-        if fp is not None:
+        if fp:
             csvname = fp
         else:
             csvname = self.fp
