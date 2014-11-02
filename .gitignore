@@ -58,3 +58,6 @@ testdata/Untitled-1.tif
 geany_run_script.bat
 msvcp90.dll
 inno-setup/setup.zip
+setup.py
+*.exe
+*.zip
