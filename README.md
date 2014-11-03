@@ -23,13 +23,13 @@ Installation
 
 ### Recommended way for Windows (no Python required!)
 
-* Get the [Windows 32-bit binary installer](https://github.com/i-namekawa/Pymagor/releases) and follow the instructions in the installation wizard. You **do not** need Python to run Pymagor. It comes with an uninstaller. The binary "pymagor.exe" is flagged as LARGEADDRESSAWARE so that it goes over the 2GB memory allocation limit by Windows up to 4GB on 32-bit Python. So, the peformance of this binary is better than running the source on 32-bit python. (unless python.exe is flagged too)
+* Get the [Windows 32-bit binary installer](https://github.com/i-namekawa/Pymagor/releases) and follow the instructions in the installation wizard. You **do not** need Python to run Pymagor. It comes with an uninstaller.
 
 The 64-bit binary is possible to build but was too huge (>200 MB, due to numpy/scipy dlls). So, if you need 64-bit, you should run from source.
 
 ### Hard way (for development, on Linux/Mac, and to run on 64-bit Python)
 
-1. Install the latest Python 2.7 series. For Windows, Python(x,y) for 32-bit and WinPython for 64-bit are recommended.
+1. Install the latest Python 2.7 series. Python(x,y) recommended on Windows.
 2. Install all the Dependencies. Python(x,y) covers most of these.
   * pillow
   * numpy
