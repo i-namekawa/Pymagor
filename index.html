@@ -7,6 +7,7 @@
 
     <link rel="stylesheet" href="stylesheets/styles.css">
     <link rel="stylesheet" href="stylesheets/pygment_trac.css">
+    <script src="javascripts/scale.fix.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
     <!--[if lt IE 9]>
     <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
@@ -15,83 +16,101 @@
   <body>
     <div class="wrapper">
       <header>
-        <h1>Pymagor</h1>
-        <p>Pymagor: a Python based ROI definition tool for calcium imaging data</p>
-
-        <p class="view"><a href="https://github.com/i-namekawa/Pymagor">View the Project on GitHub <small>i-namekawa/Pymagor</small></a></p>
-
+        <h1 class="header">Pymagor</h1>
+        <p class="header">Pymagor: a Python based ROI definition tool for calcium imaging data</p>
 
         <ul>
-          <li><a href="https://github.com/i-namekawa/Pymagor/zipball/master">Download <strong>ZIP File</strong></a></li>
-          <li><a href="https://github.com/i-namekawa/Pymagor/tarball/master">Download <strong>TAR Ball</strong></a></li>
-          <li><a href="https://github.com/i-namekawa/Pymagor">View On <strong>GitHub</strong></a></li>
+          <li class="download"><a class="buttons" href="https://github.com/i-namekawa/Pymagor/zipball/master">Download ZIP</a></li>
+          <li class="download"><a class="buttons" href="https://github.com/i-namekawa/Pymagor/tarball/master">Download TAR</a></li>
+          <li><a class="buttons github" href="https://github.com/i-namekawa/Pymagor">View On GitHub</a></li>
         </ul>
+
+        <p class="header">This project is maintained by <a class="header name" href="https://github.com/i-namekawa">i-namekawa</a></p>
+
+
       </header>
       <section>
         <h1>
-<a name="pymagor" class="anchor" href="#pymagor"><span class="octicon octicon-link"></span></a>Pymagor</h1>
+<a name="pymagor-a-python-based-calcium-imaging-data-analysis-tool" class="anchor" href="#pymagor-a-python-based-calcium-imaging-data-analysis-tool"><span class="octicon octicon-link"></span></a>Pymagor: a Python based calcium imaging data analysis tool.</h1>
 
-<p>Pymagor: a Python based ROI definition tool for calcium imaging data</p>
+<p><img src="https://github.com/i-namekawa/Pymagor/blob/images/images/Main-OnlineAnalysisSheet.jpg" alt="PymagorScreenshot"></p>
 
-<p>Pymagor is a tool to draw region-of-interest manually on the multi-page TIFF and other supported image files and quickly get a dF/F trace. With user prodided meta-data, Pymagor will automatically align multiple image files for each stimulus condition and field-of-view combinations. You can export a PDF summary report and a mat file (or npz) for later analysis.</p>
+<h3>
+<a name="roi-drawing-made-fun" class="anchor" href="#roi-drawing-made-fun"><span class="octicon octicon-link"></span></a>"ROI drawing made fun"</h3>
+
+<p>Pymagor is a stand alone application that aims to automate many of labor intensive steps of calcium imaging data analysis and provide a user friendly environment for manual ROI drawing. Pymagor can open any multi-page TIFF files (and other supported files) and you can quickly check dF/F image (either as frame average or movie) and the basal fluorescence image for morphology (raw frame or frame average). Pymagor will automatically align multiple image files for each stimulus and field-of-view combination. You can export a PDF summary report and a mat file (or npz) for later analysis.</p>
+
+<p>For more details, check <a href="https://github.com/i-namekawa/Pymagor/wiki">the wiki documentation</a>.</p>
 
 <h2>
-<a name="supported-platforms" class="anchor" href="#supported-platforms"><span class="octicon octicon-link"></span></a>Supported platform(s)</h2>
+<a name="supported-platforms" class="anchor" href="#supported-platforms"><span class="octicon octicon-link"></span></a>Supported platforms</h2>
 
-<p>Pymagor is made with Python and cross-platform libraries. However, at moment, the primaly target platform is Windows XP/7, alghtough it will be relatively easy to support Linux and Mac.</p>
+<p>Pymagor is built upon Python and cross-platform libraries, meaning that it will be relatively easy to support Linux and Mac.
+However, only Windows 7 will be supported. All libraries used in Pymagor are ready for 64-bit (except on Mac until I upgrade to wxPython3.0).</p>
 
 <ul>
-<li>MS-Windows 7, XP (win8 not tested)</li>
-<li>(Ubuntu, may need a few adjustments)</li>
-<li>(Mac? I do not have one)</li>
+<li>MS-Windows XP/7/8 (<a href="http://www.windows93.net/">Windows93</a> not supported)</li>
+<li>(Ubuntu 14.04: It can run from source with some GTK warnings)</li>
+<li>(Mac: It manages to run from source on Darwin but it needs some more GUI element adjustments. wxPython2.8 on Mac requires 32-bit Python. So, it's better to install a separate Python2.7 32-bit and install all the dependencies there.)</li>
 </ul>
 
 <h2>
 <a name="installation" class="anchor" href="#installation"><span class="octicon octicon-link"></span></a>Installation</h2>
 
 <h3>
-<a name="recommended-way-no-python-required" class="anchor" href="#recommended-way-no-python-required"><span class="octicon octicon-link"></span></a>Recommended way (no Python required!)</h3>
+<a name="recommended-way-for-windows-no-python-required" class="anchor" href="#recommended-way-for-windows-no-python-required"><span class="octicon octicon-link"></span></a>Recommended way for Windows (no Python required!)</h3>
 
 <ul>
-<li>Get the binary installer and follow the instructions in the installation wizard. You <strong>do not</strong> need Python to run Pymagor.</li>
+<li>Get the <a href="https://github.com/i-namekawa/Pymagor/releases">Windows 32-bit binary installer</a> and follow the instructions in the installation wizard. You <strong>do not</strong> need Python to run Pymagor. It comes with an uninstaller. The binary "pymagor.exe" is flagged as LARGEADDRESSAWARE so that it goes over the 2GB memory allocation limit by Windows up to 4GB on 32-bit Python. So, the peformance of this binary is better than running the source on 32-bit python. (unless python.exe is flagged too)</li>
 </ul>
 
+<p>The 64-bit binary is possible to build but was too huge (&gt;200 MB, due to numpy/scipy dlls). So, if you need 64-bit, you should run from source.</p>
+
 <h3>
-<a name="hard-way-for-dev" class="anchor" href="#hard-way-for-dev"><span class="octicon octicon-link"></span></a>Hard way (for dev)</h3>
+<a name="hard-way-for-development-on-linuxmac-and-to-run-on-64-bit-python" class="anchor" href="#hard-way-for-development-on-linuxmac-and-to-run-on-64-bit-python"><span class="octicon octicon-link"></span></a>Hard way (for development, on Linux/Mac, and to run on 64-bit Python)</h3>
 
 <ol>
-<li>Install the latest Python 2.7 series. Python(x,y) recommended on Windows.</li>
+<li>Install the latest Python 2.7 series. For Windows, Python(x,y) for 32-bit and WinPython for 64-bit are recommended.</li>
 <li>Install all the Dependencies. Python(x,y) covers most of these.
 
 <ul>
 <li>pillow</li>
 <li>numpy</li>
-<li>scipy</li>
+<li>scipy (v0.12.0 or greater)</li>
 <li>matplotlib</li>
 <li>xlrd</li>
 <li>xlwt</li>
-<li>wx</li>
+<li>wx (v2.8.12.1)</li>
 <li>win32process (MS-Windows only)</li>
 <li>yapsy</li>
 <li>tifffile</li>
 </ul>
 </li>
-<li>Clone the git repogitory (<a href="https://github.com/i-namekawa/Pymagor.git">https://github.com/i-namekawa/Pymagor.git</a>) and you are ready to go. </li>
+<li>Clone the git repogitory (<a href="https://github.com/i-namekawa/Pymagor.git">https://github.com/i-namekawa/Pymagor.git</a>) and run Pymagor2.py</li>
 </ol>
 
-<p>Note: <strong>Don't</strong> attempt to <code>python setup.py install</code>. Pymagor is a stand-alone program not a module. Just run Pymagor2.py. <code>setup.py</code> is for py2exe packaging only. To build an executable using py2exe, you will need git.exe in the system path.</p>
+<h2>
+<a name="bug-report" class="anchor" href="#bug-report"><span class="octicon octicon-link"></span></a>Bug report</h2>
+
+<p>Please use <a href="https://github.com/i-namekawa/Pymagor/issues">Issue tracker</a> and paste the content of pymagor.log whenever possible. pymagor.log can be found from Help menu -&gt; Go to User folder.</p>
 
 <h2>
 <a name="license" class="anchor" href="#license"><span class="octicon octicon-link"></span></a>License</h2>
 
 <p>Pymagor is licensed under a 3-clause BSD style license - see the LICENSE.txt file.</p>
+
+<h2>
+<a name="screenshots" class="anchor" href="#screenshots"><span class="octicon octicon-link"></span></a>Screenshots</h2>
+
+<p><img src="https://github.com/i-namekawa/Pymagor/blob/images/images/TrialViewer.jpg" alt="TrialViewer">
+<img src="https://github.com/i-namekawa/Pymagor/blob/images/images/QuickPlot.jpg" alt="QuickPlot">
+<img src="https://github.com/i-namekawa/Pymagor/blob/images/images/BatchLauncher.jpg" alt="BatchLauncher"></p>
       </section>
       <footer>
-        <p>This project is maintained by <a href="https://github.com/i-namekawa">i-namekawa</a></p>
-        <p><small>Hosted on GitHub Pages &mdash; Theme by <a href="https://github.com/orderedlist">orderedlist</a></small></p>
+        <p><small>Hosted on <a href="http://pages.github.com">GitHub Pages</a> using the Dinky theme</small></p>
       </footer>
     </div>
-    <script src="javascripts/scale.fix.js"></script>
-    
+    <!--[if !IE]><script>fixScale(document);</script><![endif]-->
+		
   </body>
 </html>
