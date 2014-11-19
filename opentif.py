@@ -68,11 +68,13 @@ def get_all_tags(fp):
                 splitted = tag.split('=')
                 if len( splitted ) == 2:
                     key, value = splitted
+                    #print key, value
                     meta_data_dict[key] = value
+                    
         
         elif tagkeys == [274, 277, 279]:
             meta_data_dict['acqsoftware'] = 'MATLAB'
-            meta_data_dict['frames'] = _count_frames(im)
+            meta_data_dict['nframes'] = _count_frames(im)
             
         else: # unknown file type
             return _count_frames(im)
@@ -122,12 +124,22 @@ def get_tags(fp):
                 'state.motor.relZPosition'
                 ]
     
-    if acqsoftware == 'ImageJ' or acqsoftware == 'MATLAB':
+    if acqsoftware == 'ImageJ':
         img_info['nch'] = 1
         img_info['zoomFactor'] = 0
         img_info['averaging'] = 0
         img_info['recorded_ch'] = ['1','0','0','0']
-        img_info['nframes'] = int(Metadata['frames'])
+        img_info['nframes'] = int(Metadata['images'])
+        img_info['scanAmplitudeX'] = 0
+        img_info['scanAmplitudeY'] = 0
+        img_info['frameRate'] = 0
+    
+    elif acqsoftware == 'MATLAB':
+        img_info['nch'] = 1
+        img_info['zoomFactor'] = 0
+        img_info['averaging'] = 0
+        img_info['recorded_ch'] = ['1','0','0','0']
+        img_info['nframes'] = int(Metadata['nframes'])
         img_info['scanAmplitudeX'] = 0
         img_info['scanAmplitudeY'] = 0
         img_info['frameRate'] = 0
@@ -322,20 +334,26 @@ def _check8bit_PIL(im, rng, nframes, abortEvent): # slower
 if __name__ == '__main__':
     
     ## micromanager
-    #fp = r'testdata\EngGCaMP2xOL_images.tif'
+    fp = r'testdata\EngGCaMP2xOL_images.tif'
     
     ## ImageJ
     fp = r"testdata\Untitled-1.tif"
     
     ## ScanImage 3.8 z-stack
-    #fp = r'testdata\beads004.tif'
+    fp = r'testdata\beads004.tif'
     
     ## ScanImage 3.8 time series
-    #fp = r'testdata\40frames001.tif'
+    fp = r'testdata\40frames001.tif'
+    
+    # MATLAB
+    fp = r'testdata\test_50to100_.tif'
     
     info = get_tags(fp)
     durpre = [1,8]
     durres = [10,25]
+    
+    meta_data_dict = get_all_tags(fp)
+    print meta_data_dict['acqsoftware']
     
     #img = opentif(fp, dtype=np.uint16, skip=[durpre, durres])
     img = opentif(fp, dtype=np.uint16, skip=False, ch=0)
@@ -343,7 +361,7 @@ if __name__ == '__main__':
     
     import time
     t0 = time.time()
-    a, b = opentif(fp, skip=False, check8bit=True, ch=1)
+    a, b = opentif(fp, skip=False, check8bit=True, ch=0)
     print time.time() - t0
     
     #from pylab import *
