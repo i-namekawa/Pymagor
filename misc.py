@@ -364,7 +364,7 @@ def get_offset_within_trial(fp, ref_ch, durpre, margin, SpaMeds):
                                         margin=margin, 
                                         dur=durpre, 
                                         SpaMed=SpaMeds, 
-                                        vervose=True
+                                        verbose=True
                                         )
             offset_dict[(imgfile, ref_ch, durpre, SpaMeds)] = offsets
             with open(fp_offset, 'wb') as f:
