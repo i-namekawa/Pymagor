@@ -68,3 +68,5 @@ testdata/ScanImageBTestFiles/ScanImageBTestFiles.offset
 testdata/ScanImageBTestFiles/Test01_001_.tif
 testdata/ScanImageBTestFiles/Test01_003_.tif
 testdata/ScanImageBTestFiles/Test01_005_.tif
+testdata/test50to100.tif
+testdata/test50to100_shift x5 y-9.tif

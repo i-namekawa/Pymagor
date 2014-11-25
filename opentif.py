@@ -117,7 +117,17 @@ def get_tags(fp):
         return
     
     img_info = dict()
-
+    float_keys = [ # ver 3.6-3.8
+            'state.acq.frameRate',
+            'state.acq.scanAmplitudeX',
+            'state.acq.scanAmplitudeY',
+            'state.motor.absXPosition',
+            'state.motor.absYPosition',
+            'state.motor.absZPosition',
+            'state.motor.relXPosition',
+            'state.motor.relYPosition',
+            'state.motor.relZPosition'
+            ]
     
     if acqsoftware == 'ImageJ':
         img_info['nch'] = 1
@@ -170,17 +180,7 @@ def get_tags(fp):
             ver = float(acqsoftware.split('scanimage')[-1])
         img_info['version'] = ver
         
-        float_keys = [ # ver 3.6-3.8
-                'state.acq.frameRate',
-                'state.acq.scanAmplitudeX',
-                'state.acq.scanAmplitudeY',
-                'state.motor.absXPosition',
-                'state.motor.absYPosition',
-                'state.motor.absZPosition',
-                'state.motor.relXPosition',
-                'state.motor.relYPosition',
-                'state.motor.relZPosition'
-                ]
+
         if float(ver) == 3.8:
             # rename some keys
             float_keys[1] = 'state.acq.scanAngleMultiplierFast'
@@ -364,10 +364,10 @@ if __name__ == '__main__':
     #fp = r'testdata\EngGCaMP2xOL_images.tif'
     
     ## ImageJ
-    fp = r"testdata\Untitled-1.tif"
+    #fp = r"testdata\Untitled-1.tif"
     
     # MATLAB
-    #fp = r'testdata\test_50to100_.tif'
+    fp = r'testdata\test50to100.tif'
     
     ## ScanImage 3.8 z-stack
     #fp = r'testdata\beads004.tif'
@@ -399,9 +399,6 @@ if __name__ == '__main__':
     a, b = opentif(fp, skip=False, check8bit=True, ch=0)
     print time.time() - t0
     
-    #from pylab import *
-    #bar(b[1:], a)
-    #show()
     print a, b
     
     

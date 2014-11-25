@@ -4550,6 +4550,8 @@ def LPMavg(fp, rng, dtype, nch, offsets=None, ch2load=None):
         
         imfile = tifffile.TIFFfile(fp)
         avg = imfile.asarray(fr2load[0]).astype(np.uint64)
+        if len(avg.shape) == 3:
+            avg = avg[0,:,:]
         
     # use pillow for non-tiff
     else:
@@ -4572,6 +4574,9 @@ def LPMavg(fp, rng, dtype, nch, offsets=None, ch2load=None):
             else:
                 im.seek(n)
                 curframe = np.array(im.convert('L'))
+            
+            if len(curframe.shape) == 3:
+                curframe = curframe[0,:,:]
             
             if offsets is not None:
                 fr = n/nch-ch
@@ -4608,6 +4613,9 @@ def LPMresmap(fp, F, rng, dtype, nch, offsets=None):
             im.seek(n)
             curframe = np.array(im.getdata()).reshape(h,w)
         
+        if len(curframe.shape) == 3:
+            curframe = curframe[0,:,:]
+
         if offsets is not None:
             fr = n/nch-ch
             yoff, xoff = offsets[fr, :2]
