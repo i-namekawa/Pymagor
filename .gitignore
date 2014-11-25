@@ -61,3 +61,10 @@ inno-setup/setup.zip
 setup.py
 *.exe
 *.zip
+testdata/FromPeter/Test1_010_movie.tif
+testdata/FromPeter/Test1_022_zstack.tif
+testdata/scanimage38/ii260809n01001.tif
+testdata/ScanImageBTestFiles/ScanImageBTestFiles.offset
+testdata/ScanImageBTestFiles/Test01_001_.tif
+testdata/ScanImageBTestFiles/Test01_003_.tif
+testdata/ScanImageBTestFiles/Test01_005_.tif

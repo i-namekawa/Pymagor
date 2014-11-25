@@ -4088,34 +4088,35 @@ class ParamsPanel(wx.Panel):
             self.SetFont(wx.Font(7, wx.SWISS, wx.NORMAL, wx.NORMAL))
         
         x,y = 5, 20
-        scsize = (48,20)
+        #scsize = (48,20)
+        scsize = (60,20)
         wx.StaticBox(self, -1, 'Pre- (F) and During-stimulus frames', (x,3), (193,68))
         # DurPre Start
         wx.StaticText(self, -1, 'F period', (x+5,y+3))
         self.IDsc_preS = wx.NewId()
-        self.sc_preS = wx.SpinCtrl(self, self.IDsc_preS, '', (x+65+5,y), scsize)
+        self.sc_preS = wx.SpinCtrl(self, self.IDsc_preS, '', (x+55+5,y), scsize)
         self.sc_preS.SetValue(durpre[0])
-        self.sc_preS.SetRange(0,999)
+        self.sc_preS.SetRange(0,256**2-1)
         self.sc_preS.Bind(wx.EVT_SPINCTRL, self.OnSpin)
         # DurPre End
-        wx.StaticText(self, -1, '- ', (x+120+5,y))
+        wx.StaticText(self, -1, '- ', (x+120+3,y))
         self.IDsc_preE = wx.NewId()
-        self.sc_preE = wx.SpinCtrl(self, self.IDsc_preE, '', (x+131+5,y), scsize)
+        self.sc_preE = wx.SpinCtrl(self, self.IDsc_preE, '', (x+126+5,y), scsize)
         self.sc_preE.SetValue(durpre[1])
-        self.sc_preE.SetRange(0,999)
+        self.sc_preE.SetRange(0,256**2-1)
         self.sc_preE.Bind(wx.EVT_SPINCTRL, self.OnSpin)
         # DurRes Start
-        wx.StaticText(self, -1, 'During stim.', (x+5,y+28))
+        wx.StaticText(self, -1, 'During stim', (x+5,y+28))
         self.IDsc_resS = wx.NewId()
-        self.sc_resS = wx.SpinCtrl(self, self.IDsc_resS, '', (x+65+5,y+25), scsize)
-        self.sc_resS.SetRange(0,999)
+        self.sc_resS = wx.SpinCtrl(self, self.IDsc_resS, '', (x+55+5,y+25), scsize)
+        self.sc_resS.SetRange(0,256**2-1)
         self.sc_resS.SetValue(durres[0])
         self.sc_resS.Bind(wx.EVT_SPINCTRL, self.OnSpin)
         # DurRes End
-        wx.StaticText(self, -1, '-', (x+120+5,y+28))
+        wx.StaticText(self, -1, '-', (x+120+3,y+28))
         self.IDsc_resE = wx.NewId()
-        self.sc_resE = wx.SpinCtrl(self, self.IDsc_resE, '', (x+131+5,y+25), scsize)
-        self.sc_resE.SetRange(0,999)
+        self.sc_resE = wx.SpinCtrl(self, self.IDsc_resE, '', (x+126+5,y+25), scsize)
+        self.sc_resE.SetRange(0,256**2-1)
         self.sc_resE.SetValue(durres[1])
         self.sc_resE.Bind(wx.EVT_SPINCTRL, self.OnSpin)
 
@@ -4126,15 +4127,15 @@ class ParamsPanel(wx.Panel):
         self.IDsc_cmin = wx.NewId()
         if platform.system() == 'Linux':
             self.sc_cmin = FS.FloatSpin(self, self.IDsc_cmin, min_val=-999/4, 
-                max_val=-0.5, size=(55,20), increment=0.1, value=cmin, style=FS.FS_LEFT)
+                max_val=-0.5, size=(63,20), increment=0.1, value=cmin, style=FS.FS_LEFT)
         else:
             self.sc_cmin = FS.FloatSpin(self, self.IDsc_cmin, min_val=-999/4, 
                 max_val=-0.5, increment=0.1, value=cmin, agwStyle=FS.FS_LEFT)
-            self.sc_cmin.SetSize((55,20))
+            self.sc_cmin.SetSize((63,20))
         
         self.sc_cmin.SetFormat("%f")
         self.sc_cmin.SetDigits(1)
-        self.sc_cmin.SetPosition((70,y+h))
+        self.sc_cmin.SetPosition((65,y+h))
         self.sc_cmin.Bind(FS.EVT_FLOATSPIN, self.OnSpin)
         # cmap max
         wx.StaticText(self, -1, '-', (129,y+h+3))
