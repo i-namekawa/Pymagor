@@ -421,7 +421,7 @@ class trial2(wx.Frame):
         
         # Create widgets on Toolbar 1
         txt_z = wx.StaticText(self.toolbar1, -1, 'z:')
-        self.scz = wx.SpinCtrl(self.toolbar1, -1, '0', size=(53,20))
+        self.scz = wx.SpinCtrl(self.toolbar1, -1, '0', size=(60,20))
         self.scz.SetRange(0, self.z-1)
         
         self.ManScaling = wx.CheckBox(self.toolbar1, -1, 'ManSc')
@@ -429,10 +429,10 @@ class trial2(wx.Frame):
         self.ManScaling.SetValue(True)
         
         txt_H = wx.StaticText(self.toolbar1, -1, ' hi:')
-        self.scH = wx.SpinCtrl(self.toolbar1, -1, '', size=(53,20))
+        self.scH = wx.SpinCtrl(self.toolbar1, -1, '', size=(60,20))
         
         txt_L = wx.StaticText(self.toolbar1, -1, ' lo:')
-        self.scL = wx.SpinCtrl(self.toolbar1, -1, '', size=(53,20))
+        self.scL = wx.SpinCtrl(self.toolbar1, -1, '', size=(60,20))
         
         if self.img.dtype == np.uint8:
             self.scH.SetRange(1, 255)
@@ -2362,16 +2362,19 @@ class trial2(wx.Frame):
             return
         
         self.imgdict['hist'][fp] = (a,b)
-        
-        rate = 100.0 * a[:4].sum() / a.sum()
-        if verbose:
-            print '8-bit coverage (%s) = %f (%%)' % (fp, rate)
-            print ', '.join(['%d-%d: %d' % (b[n], b[n+1], aa) for n, aa in enumerate(a)][2:])
-        
-        if rate < 99.75 and self.imgdict['fastLoad']:
-            MainFrame.showmessage(self.parent, (
-            'Image data is not in 8-bit range (255).\n'+
-            'Re-open with \"Load as unit8\" box uncheched.'))
+        if a.sum()>0:
+            rate = 100.0 * a[:4].sum() / a.sum()
+            if verbose:
+                print '8-bit coverage (%s) = %f (%%)' % (fp, rate)
+                print ', '.join(['%d-%d: %d' % (b[n], b[n+1], aa) for n, aa in enumerate(a)][2:])
+            if rate < 99.75 and self.imgdict['fastLoad']:
+                MainFrame.showmessage(self.parent, (
+                'Image data is not in 8-bit range (255).\n'+
+                'Re-open with \"Load as unit8\" box uncheched.'))
+        else:
+            if verbose:
+                print '8-bit coverage (%s) = 0 (%%)'
+                
     
     def OnMouse(self, event):    # ALL mouse events on display
         

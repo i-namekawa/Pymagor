@@ -60,9 +60,15 @@ def get_all_tags(fp):
             if tags.startswith('ImageJ'):
                 meta_data_dict['acqsoftware'] = 'ImageJ'
                 sepstr = '\n'
-            else:
-                meta_data_dict['acqsoftware'] = 'scanimage'
+            elif tags.startswith('scanimage'):
+                meta_data_dict['acqsoftware'] = 'scanimage4'
+                sepstr = '\n'
+            elif tags.startswith('state.configPath'):
+                meta_data_dict['acqsoftware'] = 'scanimage3.8'
                 sepstr = '\r'
+            else:
+                meta_data_dict['acqsoftware'] = 'unknown'
+                sepstr = '\n'
                 
             for tag in tags.split(sepstr):
                 splitted = tag.split('=')
@@ -70,7 +76,6 @@ def get_all_tags(fp):
                     key, value = splitted
                     #print key, value
                     meta_data_dict[key] = value
-                    
         
         elif tagkeys == [274, 277, 279]:
             meta_data_dict['acqsoftware'] = 'MATLAB'
@@ -112,17 +117,7 @@ def get_tags(fp):
         return
     
     img_info = dict()
-    float_keys = [
-                'state.acq.frameRate',
-                'state.acq.scanAmplitudeX',
-                'state.acq.scanAmplitudeY',
-                'state.motor.absXPosition',
-                'state.motor.absYPosition',
-                'state.motor.absZPosition',
-                'state.motor.relXPosition',
-                'state.motor.relYPosition',
-                'state.motor.relZPosition'
-                ]
+
     
     if acqsoftware == 'ImageJ':
         img_info['nch'] = 1
@@ -164,29 +159,54 @@ def get_tags(fp):
         img_info['scanAmplitudeY'] = 0
         img_info['frameRate'] = Metadata['frameRate']
         
-    elif acqsoftware == 'scanimage':
+    elif acqsoftware.startswith('scanimage'):
         
         if type(Metadata) != dict:
             raise(Exception("invalid scanimage tif"))
         
-        ver = Metadata['state.software.version']
+        if 'state.software.version' in Metadata.keys():
+            ver = float(Metadata['state.software.version'])
+        else:
+            ver = float(acqsoftware.split('scanimage')[-1])
         img_info['version'] = ver
         
-        if float(ver) > 3.6:
+        float_keys = [ # ver 3.6-3.8
+                'state.acq.frameRate',
+                'state.acq.scanAmplitudeX',
+                'state.acq.scanAmplitudeY',
+                'state.motor.absXPosition',
+                'state.motor.absYPosition',
+                'state.motor.absZPosition',
+                'state.motor.relXPosition',
+                'state.motor.relYPosition',
+                'state.motor.relZPosition'
+                ]
+        if float(ver) == 3.8:
             # rename some keys
             float_keys[1] = 'state.acq.scanAngleMultiplierFast'
             float_keys[2] = 'state.acq.scanAngleMultiplierSlow'
-        
-        zdim = int(Metadata['state.acq.numberOfZSlices'])
-        frames = int(Metadata['state.acq.numberOfFrames'])
-        
-        img_info['nch'] = int(Metadata['state.acq.numberOfChannelsSave'])
-        img_info['zoomFactor'] = float(Metadata['state.acq.zoomFactor'])
-        img_info['averaging'] = int(Metadata['state.acq.averaging'])
-        img_info['recorded_ch'] = [Metadata['state.acq.savingChannel1'],
-                        Metadata['state.acq.savingChannel2'],
-                        Metadata['state.acq.savingChannel3'],
-                        Metadata['state.acq.savingChannel4']]
+        elif float(ver) == 4:
+            float_keys = []
+            
+        #3.6-3.8
+        if ver == 3.6 or ver == 3.8:
+            zdim = int(Metadata['state.acq.numberOfZSlices'])
+            frames = int(Metadata['state.acq.numberOfFrames'])
+            img_info['nch'] = int(Metadata['state.acq.numberOfChannelsSave'])
+            img_info['zoomFactor'] = float(Metadata['state.acq.zoomFactor'])
+            img_info['averaging'] = int(Metadata['state.acq.averaging'])
+            img_info['recorded_ch'] = [Metadata['state.acq.savingChannel1'],
+                                        Metadata['state.acq.savingChannel2'],
+                                        Metadata['state.acq.savingChannel3'],
+                                        Metadata['state.acq.savingChannel4']]
+        elif ver == 4:
+            zdim = int(Metadata['scanimage.SI4.stackNumSlices '])
+            frames = int(Metadata['scanimage.SI4.acqNumFrames '])
+            img_info['nch'] = int(Metadata['scanimage.SI4.channelsSave '])
+            img_info['zoomFactor'] = float(Metadata['scanimage.SI4.scanZoomFactor '])
+            
+            img_info['averaging'] = int(Metadata['scanimage.SI4.acqNumAveragedFrames '])
+            img_info['recorded_ch'] = Metadata['scanimage.SI4.channelsSave ']
         
         for key in float_keys:
             value = Metadata[key]
@@ -198,16 +218,23 @@ def get_tags(fp):
         
         # z-stack typically has 10 frames and 50 zdim.
         # odor res has 160 frames and 1 zdim.
-        if float(ver) > 3.6:
+        if ver == 3.8:
             n = int(Metadata['state.acq.numAvgFramesSave'])
             img_info['nframes'] = frames / n * zdim
-        else:
+        elif ver == 3.6:
             if Metadata['state.acq.averaging'] == '1': # each plane averaged
                 img_info['nframes'] = zdim
             else:
-                img_info['nframes'] = frames*zdim
-    
+                img_info['nframes'] = frames * zdim
+        elif ver == 4:
+            n = int(Metadata['scanimage.SI4.acqNumAveragedFrames '])
+            img_info['nframes'] = frames / n * zdim
+        
+        
     else:  # unrecognized file types
+        
+        print 'unrecognized file types'
+        
         img_info['nch'] = 1
         img_info['zoomFactor'] = 'NA'
         img_info['averaging'] = 'NA'
@@ -334,27 +361,35 @@ def _check8bit_PIL(im, rng, nframes, abortEvent): # slower
 if __name__ == '__main__':
     
     ## micromanager
-    fp = r'testdata\EngGCaMP2xOL_images.tif'
+    #fp = r'testdata\EngGCaMP2xOL_images.tif'
     
     ## ImageJ
     fp = r"testdata\Untitled-1.tif"
     
+    # MATLAB
+    #fp = r'testdata\test_50to100_.tif'
+    
     ## ScanImage 3.8 z-stack
-    fp = r'testdata\beads004.tif'
+    #fp = r'testdata\beads004.tif'
     
     ## ScanImage 3.8 time series
-    fp = r'testdata\40frames001.tif'
+    #fp = r'testdata\40frames001.tif'
     
-    # MATLAB
-    fp = r'testdata\test_50to100_.tif'
+    
+    ### ScanImage4B for resonance scan (forked by Peter)
+    #fp = r'testdata\ScanImageBTestFiles\Test01_005_.tif'
+    ## ScanImage 4B for resonance scan zstack
+    #fp = r"testdata\FromPeter\Test1_022_zstack.tif" # 100 frames in each slice, 30 slices
+    
     
     info = get_tags(fp)
-    durpre = [1,8]
-    durres = [10,25]
-    
+    print info
+
     meta_data_dict = get_all_tags(fp)
     print meta_data_dict['acqsoftware']
     
+    durpre = [1,8]
+    durres = [10,25]
     #img = opentif(fp, dtype=np.uint16, skip=[durpre, durres])
     img = opentif(fp, dtype=np.uint16, skip=False, ch=0)
     print img.shape
