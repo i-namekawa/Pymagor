@@ -23,7 +23,8 @@ def z_prefix(planes):
         m = re.search('^z([\+\-]){0,1}[0-9]{1,4}', z)
         if m:
             _planes.append( float(m.group(0)[1:]) )
-    
+        else:
+            _planes.append( z )
     return _planes
 
 

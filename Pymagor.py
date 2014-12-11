@@ -4668,8 +4668,11 @@ def lowpeakmemload(fp, dtype, filt=None, skip=False, ch=0):
         
         raw = opentif(fp, dtype, filt, skip=skip, ch=ch) # opentif can load ior also
         DFoFmovie = None
-        anatomy = LPMavg(fp, [0, nframes-1], dtype, nch, offsets, ch2load=ch)
-        
+        if nframes<100:
+            anatomy = LPMavg(fp, [0, nframes-1], dtype, nch, offsets, ch2load=ch)
+        else:
+            anatomy = LPMavg(fp, [0, 100], dtype, nch, offsets, ch2load=ch)
+            
     else:                       # howmanyframe = 0
         raw = opentif(fp, dtype, filt, ch=ch)
         
@@ -4851,7 +4854,6 @@ def pack(data_path, tags, howmanyframe, need_AvgTr, need_MaxPr, parent, reftr=No
         
         # Align trials
         if len(eachplane) == 1:  # no need to align
-            
             Foffset = np.array([[0,0,0,0]])
             margin_dict[z] = 0
         
@@ -4927,7 +4929,7 @@ def pack(data_path, tags, howmanyframe, need_AvgTr, need_MaxPr, parent, reftr=No
             AvgTr.append( np.mean(np.dstack(respoolP),2) ) 
         if need_MaxPr:
             MaxPr.append( np.max(np.dstack(respoolP),2) )
-        
+    
     # flatten the list of sublist
     sorted_tag = [item for sublist in sorted_tag for item in sublist]
     odormap_zodor = [item for sublist in odormap_zodor for item in sublist]

@@ -374,7 +374,7 @@ if __name__ == '__main__':
     #fp = r"testdata\Untitled-1.tif"
     
     # MATLAB
-    fp = r'testdata\test50to100.tif'
+    #fp = r'testdata\test50to100.tif'
     
     ## ScanImage 3.8 z-stack
     #fp = r'testdata\beads004.tif'
@@ -386,7 +386,7 @@ if __name__ == '__main__':
     ### ScanImage4B for resonance scan (forked by Peter)
     #fp = r'testdata\ScanImageBTestFiles\Test01_005_.tif'
     ## ScanImage 4B for resonance scan zstack
-    #fp = r"testdata\FromPeter\Test1_022_zstack.tif" # 100 frames in each slice, 30 slices
+    fp = r"testdata\ScanImageBTestFiles\beads_005_.tif"
     
     
     info = get_tags(fp)
