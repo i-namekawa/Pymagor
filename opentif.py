@@ -207,7 +207,14 @@ def get_tags(fp):
             
             img_info['averaging'] = int(Metadata['scanimage.SI4.acqNumAveragedFrames '])
             img_info['recorded_ch'] = Metadata['scanimage.SI4.channelsSave ']
-        
+            
+            img_info['scanAmplitudeX'] = Metadata['scanimage.SI4.scanAngleMultiplierFast ']
+            img_info['scanAmplitudeY'] = Metadata['scanimage.SI4.scanAngleMultiplierSlow ']
+            if Metadata['scanimage.SI4.framerate_user_check '] == ' 1':
+                img_info['frameRate'] = Metadata['scanimage.SI4.framerate_user ']
+            else:
+                img_info['frameRate'] = 'NA'
+            
         for key in float_keys:
             value = Metadata[key]
             key = key.split('.')[-1]

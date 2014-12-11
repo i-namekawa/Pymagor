@@ -3470,10 +3470,12 @@ class MainFrame(wx.Frame):
                     for n, infile in enumerate(files):
                         info = get_tags(infile)
                         if 'version' in info:
-                            if float(info['version']) >= 3.8:
+                            
+                            if float(info['version']) == 3.8:
                                 scanXY = info['scanAngleMultiplierFast'], info['scanAngleMultiplierSlow']
-                            else:
+                            elif float(info['version']) == 3.6 or float(info['version']) == 4.0:
                                 scanXY = info['scanAmplitudeX'], info['scanAmplitudeY']
+                            
                         else:
                             scanXY = info['scanAmplitudeX'], info['scanAmplitudeY']
                         
