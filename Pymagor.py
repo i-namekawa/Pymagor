@@ -4545,8 +4545,12 @@ def LPMavg(fp, rng, dtype, nch, offsets=None, ch2load=None):
     if not ch2load:
         ch2load = ch # ch is global var
     
-    fr2load = np.arange(rng[0], rng[1]+1) * nch + ch2load
-        
+    if len(rng) == 2:
+        st, en = rng
+        fr2load = np.arange(st, en+1) * nch + ch2load
+    elif type(rng) == np.ndarray:
+        fr2load == rng
+    
     # use tifffile for tiff
     if fp.endswith(('TIF','tif','TIFF','tiff')):
         
@@ -4669,9 +4673,10 @@ def lowpeakmemload(fp, dtype, filt=None, skip=False, ch=0):
         raw = opentif(fp, dtype, filt, skip=skip, ch=ch) # opentif can load ior also
         DFoFmovie = None
         if nframes<100:
-            anatomy = LPMavg(fp, [0, nframes-1], dtype, nch, offsets, ch2load=ch)
+            rng = [0, nframes-1]
         else:
-            anatomy = LPMavg(fp, [0, 100], dtype, nch, offsets, ch2load=ch)
+            rng = np.linspace(0, nframes-1, 100).round()
+        anatomy = LPMavg(fp, rng, dtype, nch, offsets, ch2load=ch)
             
     else:                       # howmanyframe = 0
         raw = opentif(fp, dtype, filt, ch=ch)
