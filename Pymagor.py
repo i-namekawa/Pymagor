@@ -672,11 +672,7 @@ class trial2(wx.Frame):
         if fp.endswith('mat'):
         
             a = sio.loadmat(fp)
-            
             ind = [n for n, aa in enumerate(a.keys()) if aa.startswith('pymg')]
-            
-            
-            
             
             if ind: # roi v2 or above
                 sname = a.keys()[ind[0]]
@@ -696,22 +692,36 @@ class trial2(wx.Frame):
                     if 'ROI_categories' in a[sname].dtype.names:
                         roi_ctgr = [ str(aa[0]) for aa in a[sname]['ROI_categories'][0][0][0] ]
                         roi_ctgr = [roi_ctgr[n] for n in _ind]
-                    
-                else: # then probably roiv3 and mat file format of pymagor 2.7 or above
+                
+                elif 'ROIs' in a[sname][0][0].dtype.names:  # then probably roiv3? github? this part seems brocken
                     ROIs = a[sname][0][0]['ROIs'][0]
                     roiz = [str(aa[0]) for aa in ROIs['ROI_Field_of_views'][0][0]]
+                    roipoly = [zip(aa[:,0], aa[:,1]) for aa in ROIs['ROI_polygons'][0][0]]
                     _ind = [n for n,aa in enumerate(roiz) if aa in planesfound]
                     if not _ind:
                         print 'Field-of-Views found in matfile:', roiz
                         print 'Current Field-of-Views opened:', planesfound
                         self.parent.showmessage('None of\n%s in the mat file were found in \n%s that are opened' % (roiz, list(planesfound)) )
                         return
-                    roipoly = [zip(aa[:,0], aa[:,1]) for aa in ROIs['ROI_polygons'][0][0]]
                     roipoly = [roipoly[n] for n in _ind]
                     roiz = [roiz[n] for n in _ind]
-                    
                     roi_ctgr = [ str(aa[0]) for aa in ROIs['ROI_categories'][0][0] ]
                     roi_ctgr = [roi_ctgr[n] for n in _ind]
+                
+                else: # github ver (2.7)
+                    roiz = [str(aa[0]) for aa in a[sname][0][0]['ROI_Field_of_views'][0]]
+                    roipoly = [zip(aa[:,0], aa[:,1]) for aa in a[sname][0][0]['ROI_polygons'][0]]
+                    _ind = [n for n,aa in enumerate(roiz) if aa in planesfound]
+                    if not _ind:
+                        print 'Field-of-Views found in matfile:', roiz
+                        print 'Current Field-of-Views opened:', planesfound
+                        self.parent.showmessage('None of\n%s in the mat file were found in \n%s that are opened' % (roiz, list(planesfound)) )
+                        return
+                    roipoly = [roipoly[n] for n in _ind]
+                    roiz = [roiz[n] for n in _ind]
+                    roi_ctgr = [ str(aa[0]) for aa in a[sname][0][0]['ROI_categories'][0] ]
+                    roi_ctgr = [roi_ctgr[n] for n in _ind]
+                    
                 
             else: # for roi v1 file, use the current plane name
                 
@@ -724,7 +734,7 @@ class trial2(wx.Frame):
         elif fp.endswith('npz'):
             
             a = np.load(fp)
-            if 'ROI_Field_of_views' in a.keys():  # renamed after public release
+            if 'ROI_Field_of_views' in a.keys():  # renamed after public release at github
                 roiz = a['ROI_Field_of_views'].tolist()
             else:
                 roiz = a['ROI_planes'].tolist()
@@ -4550,7 +4560,8 @@ def LPMavg(fp, rng, dtype, nch, offsets=None, ch2load=None):
         st, en = rng
         fr2load = np.arange(st, en+1) * nch + ch2load
     elif type(rng) == np.ndarray:
-        fr2load == rng
+        fr2load = rng.astype(int).copy()
+        rng = fr2load[0], fr2load[-1]
     
     # use tifffile for tiff
     if fp.endswith(('TIF','tif','TIFF','tiff')):
