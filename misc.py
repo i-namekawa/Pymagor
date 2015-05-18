@@ -400,8 +400,8 @@ def show_offsetinfo(fp_offset, offset_dict):
 if __name__ == '__main__':
     
     data_path = r'.\testdata'
-    tags = [['test_50to100_.tif', 'z0','testpulse','1',''],
-            ['test_50to100_shift x5 y-9.tif', 'z0','testpulse','2','']]
+    tags = [['test50to100.tif', 'z0','testpulse','1',''],
+            ['test50to100_shift x5 y-9.tif', 'z0','testpulse','2','']]
     offsets = np.array([[ 0,  0,  1,  0],
                         [ 5,  9,  1,  1]])
     Autoalign = False
