@@ -66,6 +66,9 @@ def get_all_tags(fp):
             elif tags.startswith('state.configPath'):
                 meta_data_dict['acqsoftware'] = 'scanimage3.8'
                 sepstr = '\r'
+            elif tags.startswith('state.configName'):
+                meta_data_dict['acqsoftware'] = 'scanimage3.6'
+                sepstr = '\r'
             else:
                 meta_data_dict['acqsoftware'] = 'unknown'
                 sepstr = '\n'
@@ -376,17 +379,19 @@ if __name__ == '__main__':
     # MATLAB
     #fp = r'testdata\test50to100.tif'
     
+    ## ScanImage 3.6 z-stack
+    fp = r"testdata\scanimage36\PSF001.tif"
+
     ## ScanImage 3.8 z-stack
     #fp = r'testdata\beads004.tif'
     
     ## ScanImage 3.8 time series
     #fp = r'testdata\40frames001.tif'
     
-    
     ### ScanImage4B for resonance scan (forked by Peter)
     #fp = r'testdata\ScanImageBTestFiles\Test01_005_.tif'
     ## ScanImage 4B for resonance scan zstack
-    fp = r"testdata\ScanImageBTestFiles\beads_005_.tif"
+    #fp = r"testdata\ScanImageBTestFiles\beads_005_.tif"
     
     
     info = get_tags(fp)

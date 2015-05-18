@@ -352,6 +352,7 @@ class trial2(wx.Frame):
         # prepare img data and buffer
         if type(imgdict) == dict:
             self.img = imgdict['unshifted frames']
+            print 'raw image size (MB): ', self.img.nbytes / 1024/1024
             self.imgdict = imgdict
         else:
             self.img = imgdict[::-1,:,:]
@@ -674,7 +675,7 @@ class trial2(wx.Frame):
             
             ind = [n for n, aa in enumerate(a.keys()) if aa.startswith('pymg')]
             
-                
+            
             
             
             if ind: # roi v2 or above
@@ -4677,7 +4678,7 @@ def lowpeakmemload(fp, dtype, filt=None, skip=False, ch=0):
         else:
             rng = np.linspace(0, nframes-1, 100).round()
         anatomy = LPMavg(fp, rng, dtype, nch, offsets, ch2load=ch)
-            
+        
     else:                       # howmanyframe = 0
         raw = opentif(fp, dtype, filt, ch=ch)
         
