@@ -182,7 +182,7 @@ img_keys = ['unshifted frames', 'dFoFfil', 'F', 'dFoFavg', 'anatomy',
 PlaneList = [] 
 ConditionList = []
 try:
-    with open(os.path.join(homedir,'Stimulus_FieldOfView_Labels.csv')) as f:
+    with open(os.path.join(homedir,'Stim_FieldOfView_Names.csv')) as f:
         dialect = csv.Sniffer().sniff(f.read(2024))
         f.seek(0)
         csvReader = csv.reader(f, dialect=dialect)
@@ -566,22 +566,7 @@ class trial2(wx.Frame):
             self.placepanels(self.w)
         
         self.refresh_buf() # initialize before binding paint event
-        
-        # setting to surpress flickering
-        # self.SetBackgroundStyle(wx.BG_STYLE_CUSTOM)
-        # It will prevent the system from trying to erase the window before the paint event. 
-        # wx.NO_FULL_REPAINT_ON_RESIZE should not be used together
-        # http://groups.google.com/group/wxpython-users/browse_thread/thread/eb048ae6c1867fe8
-        
-        # self.SetDoubleBuffered(True) # magic to kill flockering on XP, causes flickering in win7.
-        # http://wxpython-users.1045709.n5.nabble.com/SetDoubleBuffer-and-wx-TextCtrl-leads-to-continual-repaints-td4788560.html
-        # setting SetDoubleBuffered to the whole frame seems bad thing to do
-        # limit it to the area that has flickering
-        # self.display.SetDoubleBuffered(True)
-        # in the end, i had to separate display panel and write my custom OnPaint handler there.
-        # writing bmp directly on frame cannot capture key events at all.
-        # so, decided to capture them on display panel as it used to be.
-        
+
         # event bindlings
         self.Bind(wx.EVT_SIZE, self.OnResizeBorder)
         self.display.Bind(wx.EVT_CONTEXT_MENU, self.OnCtxMenu)
