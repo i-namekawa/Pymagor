@@ -94,13 +94,15 @@ with open('resources/version.info', 'r') as f:
 # hardcoding the difference between xp and win7
 # because wx2.8 does not support vista and above yet
 # until I managed to update to wx3.0
+homedir = os.path.join(os.path.expanduser('~'), 'pymagor')
 if myOS == 'Windows':
     magnifier = wx.CURSOR_MAGNIFIER
-    if 'HOMESHARE' in os.environ.keys():
-        homedir = os.path.join(os.environ['HOMESHARE'], 'pymagor')
+    _keys = os.environ.keys()
+    if 'HOMESHARE' in _keys:
+        homedir = os.path.join(os.environ['HOMESHARE'], 'pymagor') # FMI shared network drive
         # using HOMESHARE rather than USERPROFILE here, because
-        # Group policy may redirect USERPROFILE to HOMESHARE when exists
-    else:
+        # FMI Group policy may redirect USERPROFILE to HOMESHARE when exists
+    elif 'USERPROFILE' in _keys: # FMI XP machine legacy stuff? I dont recall...
         homedir = os.path.join(os.environ['USERPROFILE'], 'Documents\\pymagor')
     if platform.win32_ver()[0] == 'XP':  # resizable boarder is thin on XP.
         ymargin = (24, 32)
@@ -112,7 +114,6 @@ else:
     ymargin = (24, 32)
     xmargin = 12
     magnifier = wx.CURSOR_SIZEWE
-    homedir = os.path.join(os.path.expanduser('~'), 'pymagor')
 
 if not os.path.exists(homedir):
     os.mkdir(homedir)
