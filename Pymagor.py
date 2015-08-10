@@ -460,14 +460,14 @@ class trial2(wx.Frame):
         
         txt_Ymax = wx.StaticText(self.toolbar2, -1, 'max:')
         self.scYmax = wx.SpinCtrl(self.toolbar2, self.IDscYmax, '', size=(48,20))
-        self.scYmax.SetRange(-100,200)
+        self.scYmax.SetRange(-9999,9999)
         Ymax = 80
         self.scYmax.SetValue(Ymax)
         self.scYmax.Enable(False)
 
         txt_Ymin = wx.StaticText(self.toolbar2, -1, 'min:')
         self.scYmin = wx.SpinCtrl(self.toolbar2, self.IDscYmin, '', size=(48,20))
-        self.scYmin.SetRange(-100,200)
+        self.scYmin.SetRange(-9999,9999)
         self.scYmin.SetValue(-Ymax/4)
         self.scYmin.Enable(False)
         
@@ -4094,15 +4094,15 @@ class ParamsPanel(wx.Panel):
         wx.StaticText(self, -1, 'F period', (x+5,y+3))
         self.IDsc_preS = wx.NewId()
         self.sc_preS = wx.SpinCtrl(self, self.IDsc_preS, '', (x+55+5,y), scsize)
-        self.sc_preS.SetValue(durpre[0])
         self.sc_preS.SetRange(0,256**2-1)
+        self.sc_preS.SetValue(durpre[0])
         self.sc_preS.Bind(wx.EVT_SPINCTRL, self.OnSpin)
         # DurPre End
         wx.StaticText(self, -1, '- ', (x+120+3,y))
         self.IDsc_preE = wx.NewId()
         self.sc_preE = wx.SpinCtrl(self, self.IDsc_preE, '', (x+126+5,y), scsize)
-        self.sc_preE.SetValue(durpre[1])
         self.sc_preE.SetRange(0,256**2-1)
+        self.sc_preE.SetValue(durpre[1])
         self.sc_preE.Bind(wx.EVT_SPINCTRL, self.OnSpin)
         # DurRes Start
         wx.StaticText(self, -1, 'During stim', (x+5,y+28))
