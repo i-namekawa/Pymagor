@@ -166,6 +166,8 @@ else:
     EXPOSE_transpose_collage = True
 
 anatomy_method = False
+Overlay = False
+cutoff = -cmin
 
 working_singles, need_abort_singles = False, False
 working, need_abort = False, False
@@ -1104,7 +1106,23 @@ class trial2(wx.Frame):
 
         # color look up
         if self.TVch in [1, 3, 6, 7, 8] : # dFoF time-avg, dFoF movie, odormaps, avg or max projection
+            
             buf = gray2clut2b(frame[::-1,:].copy(), cmin, cmax)
+            
+            if Overlay and self.TVch in [3,6]:
+                # look for the corresponding anatomy in the same z plane
+                z = self.changetitle(wantz=True)
+                ind = [t[1] for t in self.tag].index(z)
+                anat = self.imgdict['anatomy'][:,:,ind]
+                # normalize color scale
+                if self.ManScaling.IsChecked():
+                    anat = self.manualscale(anat)
+                else:
+                    anat = self.manualscale(anat, anat.max(), anat.min())
+                # now replace below cutoff with anatomy
+                anat = np.tile(anat[:,:,np.newaxis], (1,1,3))
+                buf[::-1,:,:][frame<cutoff] = anat[frame<cutoff]
+
         # gray scale
         else: # unshifted frames | F | anatomy
             if self.ManScaling.IsChecked(): # Manual contrast adjust
@@ -4079,7 +4097,10 @@ class PlaneOdor_dialog(wx.Dialog):
 class ParamsPanel(wx.Panel):
 
     def __init__(self, parent):
-        'use or not to use sizers, thats the question---'
+        '''use or not to use sizers, thats the question---
+            some layout issues between XP and 7 and Ubuntu
+            hard coding is probably easiest way to get around...
+        '''
 
         wx.Panel.__init__(self, parent, -1, size=(202,245))
         self.parent = parent
@@ -4120,7 +4141,7 @@ class ParamsPanel(wx.Panel):
         self.sc_resE.Bind(wx.EVT_SPINCTRL, self.OnSpin)
 
         h = 73
-        wx.StaticBox(self, -1, 'Colormap range', (x,h), (193,50))
+        wx.StaticBox(self, -1, 'Colormap range', (x,h), (193,50+30))
         # cmap min
         txt_cmin = wx.StaticText(self, -1, 'dF/F (%)', (x+5, y+h+3))
         self.IDsc_cmin = wx.NewId()
@@ -4143,6 +4164,23 @@ class ParamsPanel(wx.Panel):
         self.sc_cmax.SetValue(cmax)
         self.sc_cmax.SetRange(0,999)
         self.sc_cmax.Bind(wx.EVT_SPINCTRL, self.OnSpin)
+
+        h += 35
+        self.overlay = wx.CheckBox(self, -1, 'Overlay   Cutoff:',(x+8,h+y))
+        self.Bind(wx.EVT_CHECKBOX, self.OnCheck, self.overlay)
+
+        if platform.system() == 'Linux':
+            self.sc_cutoff = FS.FloatSpin(self, -1, min_val=-999/4,
+                size=(63,20), increment=0.1, value=cutoff, style=FS.FS_LEFT)
+        else:
+            self.sc_cutoff = FS.FloatSpin(self, -1, min_val=-999/4,
+                increment=0.1, value=cutoff, agwStyle=FS.FS_LEFT)
+            self.sc_cutoff.SetSize((63,20))
+        self.sc_cutoff.SetFormat("%f")
+        self.sc_cutoff.SetDigits(1)
+        self.sc_cutoff.SetPosition((133,y+h-3))
+        self.sc_cutoff.Bind(FS.EVT_FLOATSPIN, self.OnSpin)
+        self.sc_cutoff.Enable(False)
 
         h += 30
         wx.StaticBox(self, -1, 'Load', (x,h+y), (193,45))
@@ -4186,18 +4224,18 @@ class ParamsPanel(wx.Panel):
 
         h += 45
         # xy and pixel value
-        self.xyz = wx.StaticText(self, -1,'(x,y,value) =', (15,h+y+5+16))
+        self.xyz = wx.StaticText(self, -1,'(x,y,value) =', (15,h+y+5+16+3))
         self.xyz.SetForegroundColour((0,100,0))
 
-        drophere = wx.StaticBox(self, -1,
-            "Add to the online analysis", (5,h+y+25+16+5), (192,110+13-16))
-        self.SetToolTip(wx.ToolTip('Drop here to add to the sheet without openning image'))
+        # drophere = wx.StaticBox(self, -1,
+        #     "Add to the analysis sheet", (5,h+y+25+16+5), (192,70+13-16))
+        self.SetToolTip(wx.ToolTip('Drop files here to add to the sheet without openning them'))
         self.Refresh()
 
 
     def OnSpin(self, event):
 
-        global durpre, durres, cmin, cmax, gmin, gmax, margin, ch, ref_ch
+        global durpre, durres, cmin, cmax, gmin, gmax, margin, ch, ref_ch, cutoff
 
         _id = event.GetId()
         if _id == self.IDsc_cmin:
@@ -4215,16 +4253,21 @@ class ParamsPanel(wx.Panel):
         margin = self.margin.GetValue()
         ch = self.ch.GetValue()
         ref_ch = self.alignch.GetValue()
+        cutoff = self.sc_cutoff.GetValue()
         self.updateImages(event)
+
 
     def OnCheck(self, event):
 
-        global SpatMed, SpatMed2, fastLoad, Autoalign
+        global SpatMed, SpatMed2, fastLoad, Autoalign, Overlay
         SpatMed = self.SpaMed.IsChecked()
         SpatMed2 = self.SpaMed2.IsChecked()
         fastLoad = self.fastLoad.IsChecked()
         Autoalign = self.Autoalign.IsChecked()
+        Overlay = self.overlay.IsChecked()
+        self.sc_cutoff.Enable(Overlay)
         self.updateImages(None)
+
 
     def updateImages(self, event):
 
