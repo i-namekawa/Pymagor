@@ -25,6 +25,7 @@
 ##  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
+
 # STANDARD libraries
 from __future__ import with_statement
 from pprint import pprint
@@ -168,6 +169,8 @@ else:
 anatomy_method = False
 Overlay = False
 cutoff = -cmin
+cutoffON = False
+SDthrs = False
 
 working_singles, need_abort_singles = False, False
 working, need_abort = False, False
@@ -1091,7 +1094,7 @@ class trial2(wx.Frame):
         self.display.SetFocus()
 
     def refresh_buf(self, update_zoomrect=False):
-
+        
         # clip out the zoomed region
         x1, y1, x2, y2 = self.zoomrect
         if self.dragging:
@@ -1104,12 +1107,18 @@ class trial2(wx.Frame):
         else:
             frame = self.img[self.h-y2:self.h-y1, x1:x2, self.curframe].copy() # copy important for manualscaling
 
+        if SDthrs and self.TVch in [1, 3, 5]:
+            thrs = self.img[:,:,self.curframe].std() * 2.5
+            self.param.sc_cutoff.SetValue( thrs )
+        
         # color look up
-        if self.TVch in [1, 3, 6, 7, 8] : # dFoF time-avg, dFoF movie, odormaps, avg or max projection
+        if self.TVch in [1,3,6,7,8]: # dFoF movie, dFoF frame avg (response maps), dFoF trial avg
             
+            if cutoffON:
+                frame[frame<cutoff] = 0
             buf = gray2clut2b(frame[::-1,:].copy(), cmin, cmax)
-            
-            if Overlay and self.TVch in [3,6]:
+
+            if Overlay:
                 # look for the corresponding anatomy in the same z plane
                 z = self.changetitle(wantz=True)
                 ind = [t[1] for t in self.tag].index(z)
@@ -1122,7 +1131,7 @@ class trial2(wx.Frame):
                 # now replace below cutoff with anatomy
                 anat = np.tile(anat[:,:,np.newaxis], (1,1,3))
                 buf[::-1,:,:][frame<cutoff] = anat[frame<cutoff]
-
+       
         # gray scale
         else: # unshifted frames | F | anatomy
             if self.ManScaling.IsChecked(): # Manual contrast adjust
@@ -4141,7 +4150,7 @@ class ParamsPanel(wx.Panel):
         self.sc_resE.Bind(wx.EVT_SPINCTRL, self.OnSpin)
 
         h = 73
-        wx.StaticBox(self, -1, 'Colormap range', (x,h), (193,50+30))
+        wx.StaticBox(self, -1, 'Colormap range', (x,h), (193,50+30+25))
         # cmap min
         txt_cmin = wx.StaticText(self, -1, 'dF/F (%)', (x+5, y+h+3))
         self.IDsc_cmin = wx.NewId()
@@ -4165,10 +4174,10 @@ class ParamsPanel(wx.Panel):
         self.sc_cmax.SetRange(0,999)
         self.sc_cmax.Bind(wx.EVT_SPINCTRL, self.OnSpin)
 
-        h += 35
-        self.overlay = wx.CheckBox(self, -1, 'Overlay   Cutoff:',(x+8,h+y))
-        self.Bind(wx.EVT_CHECKBOX, self.OnCheck, self.overlay)
-
+        h += 30
+        self.cutoff = wx.CheckBox(self, -1, 'Cutoff dF/F below:',(x+8,h+y))
+        self.Bind(wx.EVT_CHECKBOX, self.OnCheck, self.cutoff)
+        
         if platform.system() == 'Linux':
             self.sc_cutoff = FS.FloatSpin(self, -1, min_val=-999/4,
                 size=(63,20), increment=0.1, value=cutoff, style=FS.FS_LEFT)
@@ -4181,6 +4190,15 @@ class ParamsPanel(wx.Panel):
         self.sc_cutoff.SetPosition((133,y+h-3))
         self.sc_cutoff.Bind(FS.EVT_FLOATSPIN, self.OnSpin)
         self.sc_cutoff.Enable(False)
+
+        h += 25
+        self.overlay = wx.CheckBox(self, -1, 'Overlay anatomy',(x+8,h+y))
+        self.Bind(wx.EVT_CHECKBOX, self.OnCheck, self.overlay)
+        
+        self.SDthrs = wx.CheckBox(self, -1, '2.5 SD thrs',(x+118,h+y))
+        self.Bind(wx.EVT_CHECKBOX, self.OnCheck, self.SDthrs)
+
+
 
         h += 30
         wx.StaticBox(self, -1, 'Load', (x,h+y), (193,45))
@@ -4206,9 +4224,9 @@ class ParamsPanel(wx.Panel):
         self.margin.SetValue(margin)
         self.Bind(wx.EVT_SPINCTRL, self.OnSpin, self.margin)
         # Spatial Median filter for the F
-        self.SpaMed = wx.CheckBox(self, -1, 'Median on ref tr',(79,h+y+11))
+        self.SpaMed = wx.CheckBox(self, -1, 'Median on ref tr', (79,h+y+11))
         self.SpaMed.SetValue(SpatMed)
-        self.SpaMed2 = wx.CheckBox(self, -1, 'Median on target tr',(79,h+y+27))
+        self.SpaMed2 = wx.CheckBox(self, -1, 'Median on target tr', (79,h+y+27))
         self.SpaMed2.SetValue(SpatMed2)
         self.Bind(wx.EVT_CHECKBOX, self.OnCheck, self.SpaMed)
         self.Bind(wx.EVT_CHECKBOX, self.OnCheck, self.SpaMed2)
@@ -4259,13 +4277,19 @@ class ParamsPanel(wx.Panel):
 
     def OnCheck(self, event):
 
-        global SpatMed, SpatMed2, fastLoad, Autoalign, Overlay
+        global SpatMed, SpatMed2, fastLoad, Autoalign, Overlay, cutoffON, SDthrs
         SpatMed = self.SpaMed.IsChecked()
         SpatMed2 = self.SpaMed2.IsChecked()
         fastLoad = self.fastLoad.IsChecked()
         Autoalign = self.Autoalign.IsChecked()
         Overlay = self.overlay.IsChecked()
-        self.sc_cutoff.Enable(Overlay)
+        SDthrs = self.SDthrs.IsChecked()
+        
+        if Overlay: 
+            self.cutoff.SetValue(True)
+        cutoffON = self.cutoff.IsChecked()
+        
+        self.sc_cutoff.Enable(cutoffON)
         self.updateImages(None)
 
 
