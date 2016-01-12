@@ -1107,12 +1107,12 @@ class trial2(wx.Frame):
         else:
             frame = self.img[self.h-y2:self.h-y1, x1:x2, self.curframe].copy() # copy important for manualscaling
 
-        if SDthrs and self.TVch in [1, 3, 5]:
+        if SDthrs and self.TVch in [1, 3, 6]:
             thrs = self.img[:,:,self.curframe].std() * 2.5
             self.param.sc_cutoff.SetValue( thrs )
         
         # color look up
-        if self.TVch in [1,3,6,7,8]: # dFoF movie, dFoF frame avg (response maps), dFoF trial avg
+        if self.TVch in [1,3,6,7,8]: # dFoF movie, dFoF frame avg (response maps), dFoF trial avg, mean / max projections
             
             if cutoffON:
                 frame[frame<cutoff] = 0
