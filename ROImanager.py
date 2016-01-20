@@ -318,10 +318,19 @@ class ROImanager(wx.Frame):
         
         data = self.grid.GetTable().data
         roi = ROI.ROIv3()
+        runok = True
         for n, z, poly, area, center, category in data:
-            #print 'OnConfirm', z, poly, category
-            roi.add(poly, z=z, category=category)
-        self.parent.ROI = roi
+            # print 'OnConfirm', z, poly, category
+            if type(poly) == unicode:
+                try:
+                    poly = eval(poly)
+                    roi.add(poly, z=z, category=category)
+                except:
+                    print 'ROI polygon data might be wrong for %d ...' % n
+                    runok = False
+
+        if runok:
+            self.parent.ROI = roi
         self.parent.Refresh()
 
 

@@ -1095,7 +1095,7 @@ class trial2(wx.Frame):
 
     def refresh_buf(self, update_zoomrect=False):
         
-        # clip out the zoomed region
+        # clip out the zoomd region
         x1, y1, x2, y2 = self.zoomrect
         if self.dragging:
             offsetx, offsety = self.boarder_check()
@@ -1698,7 +1698,7 @@ class trial2(wx.Frame):
     def saveBMP(self, event):
 
         path = self.imgdict['data_path']
-        fname = '-'.join(self.tag[self.curframe][1:])
+        fname = '-'.join(self.tag[self.curframe][1:3])
 
         fp = os.path.join(path, os.path.basename(path)+fname+'.bmp')
 
