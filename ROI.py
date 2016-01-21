@@ -35,8 +35,8 @@ class ROIv3(object):
     def _validate_metadata(meta, n):
         if type(meta) == str:
             return [meta] * n
-        elif type(meta) == unicode or type(meta) == np.unicode_:
-            print 'ROIv3:', meta, type(meta)
+        elif type(meta) in [unicode, np.unicode_, np.string_]:
+            # print 'ROIv3:', meta, type(meta)
             return [str(meta)] * n
         elif type(meta) == list and len(meta) == n:
             return meta
