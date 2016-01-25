@@ -111,7 +111,17 @@ class CustomDataTable(gridlib.PyGridTableBase):
         category = [d[5] for d in self.data]
         index = np.lexsort((centers, z, category))
         self.data = [ self.data[ind] for ind in index ]
+    
+    def _sortbyarea(self):
+        areas = [d[3] for d in self.data]
+        z = [d[1] for d in self.data]
+        if np.all([_z.startswith('z') for _z in z]):
+            z = z_prefix(z)
         
+        category = [d[5] for d in self.data]
+        index = np.lexsort((areas, z, category))
+        self.data = [ self.data[ind] for ind in index ]
+
     def _DeleteRow(self, row):
         grid = self.GetView()
         if grid:
@@ -195,15 +205,20 @@ class ROImanager(wx.Frame):
         self.unit = 1
         panel.SetScrollbars( 0, self.unit, 0, height/self.unit )
         
+        self.autosortbtn = wx.Button(panel, -1, 'SortByPosition', style=wx.BU_EXACTFIT)
+        self.autosortbtn.Bind(wx.EVT_BUTTON, self.OnAutoSort)
+        
+        self.sortbyAreabtn = wx.Button(panel, -1, 'SortByArea', style=wx.BU_EXACTFIT)
+        self.sortbyAreabtn.Bind(wx.EVT_BUTTON, self.OnSortByArea)
+        
         self.confirmbtn = wx.Button(panel, -1, 'Confirm', style=wx.BU_EXACTFIT)
         self.confirmbtn.Bind(wx.EVT_BUTTON, self.OnConfirm)
-        self.autosortbtn = wx.Button(panel, -1, 'AutoSort', style=wx.BU_EXACTFIT)
-        self.autosortbtn.Bind(wx.EVT_BUTTON, self.OnAutoSort)
         
         sizer = wx.BoxSizer(wx.VERTICAL)
         hbox = wx.BoxSizer(wx.HORIZONTAL)
-        hbox.Add(self.confirmbtn, 0)
         hbox.Add(self.autosortbtn, 0)
+        hbox.Add(self.sortbyAreabtn, 0)
+        hbox.Add(self.confirmbtn, 0)
         sizer.Add(hbox, 0, wx.ALIGN_CENTER, 5)
         sizer.Add(self.grid, 1, wx.EXPAND, 5)
         panel.SetSizer(sizer)
@@ -312,6 +327,10 @@ class ROImanager(wx.Frame):
         self.grid.GetTable()._autosort()
         self.grid.ForceRefresh()
     
+    def OnSortByArea(self, event):
+        self.grid.GetTable()._sortbyarea()
+        self.grid.ForceRefresh()
+
     def OnConfirm(self, event):
         self.grid.GetTable()._update()
         self.grid.ForceRefresh()
@@ -320,7 +339,7 @@ class ROImanager(wx.Frame):
         roi = ROI.ROIv3()
         runok = True
         for n, z, poly, area, center, category in data:
-            # print 'OnConfirm', z, poly, category
+            # print 'OnConfirm', n, z, poly, area, center, category
             if type(poly) == unicode:
                 try:
                     poly = eval(poly)
@@ -328,6 +347,9 @@ class ROImanager(wx.Frame):
                 except:
                     print 'ROI polygon data might be wrong for %d ...' % n
                     runok = False
+            elif type(poly) == list:
+                # meaning ROI polygon unchanged
+                roi.add(poly, z=z, category=category)
 
         if runok:
             self.parent.ROI = roi
