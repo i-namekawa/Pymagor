@@ -25,7 +25,6 @@
 ##  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-
 # STANDARD libraries
 from __future__ import with_statement
 from pprint import pprint
@@ -1105,6 +1104,7 @@ class trial2(wx.Frame):
             if update_zoomrect:
                 self.zoomrect = (x1+offsetx, y1+offsety, x2+offsetx, y2+offsety)
         else:
+            offsetx, offsety = 0, 0
             frame = self.img[self.h-y2:self.h-y1, x1:x2, self.curframe].copy() # copy important for manualscaling
 
         if SDthrs and self.TVch in [1, 3, 6]:
@@ -1122,7 +1122,9 @@ class trial2(wx.Frame):
                 # look for the corresponding anatomy in the same z plane
                 z = self.changetitle(wantz=True)
                 ind = [t[1] for t in self.tag].index(z)
-                anat = self.imgdict['anatomy'][:,:,ind]
+                anat = self.imgdict['anatomy'][ self.h-y2-offsety:self.h-y1-offsety, 
+                                                x1+offsetx:x2+offsetx, ind].copy()
+               
                 # normalize color scale
                 if self.ManScaling.IsChecked():
                     anat = self.manualscale(anat)
@@ -1698,8 +1700,8 @@ class trial2(wx.Frame):
     def saveBMP(self, event):
 
         path = self.imgdict['data_path']
-        fname = '-'.join(self.tag[self.curframe][1:3])
-
+        
+        fname = ''.join([ s if s not in ['*', ':', ' ', '.'] else '_' for s in self.GetTitle()])[1:]
         fp = os.path.join(path, os.path.basename(path)+fname+'.bmp')
 
         dlg = wx.FileDialog(self, message="Save as ...",
