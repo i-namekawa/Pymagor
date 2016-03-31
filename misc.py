@@ -61,8 +61,8 @@ def path_check(fullpath, verbose=True):
 
 def Shift(ImgP, Foffset):
     
-    msf = np.abs(Foffset[:,0:2]).max() # max shift
-    if not msf:
+    maxShift = np.abs(Foffset[:,0:2]).max() # max shift
+    if not maxShift:
         return ImgP
     else:
         ImgPshited = np.zeros((ImgP.shape), dtype=ImgP.dtype)
@@ -73,7 +73,8 @@ def Shift(ImgP, Foffset):
             ImgP[:,:,ind] = np.roll(ImgP[:,:,ind], int(-x), axis=1)
         
         # 0 padding the margin
-        ImgPshited[msf:-msf,msf:-msf,:] = ImgP[msf:-msf,msf:-msf,:]
+        ImgPshited[maxShift:-maxShift,maxShift:-maxShift,:] = ImgP[maxShift:-maxShift,maxShift:-maxShift,:]
+        
         return ImgPshited
 
 
@@ -131,11 +132,13 @@ def average_odormaps(
                         needF=False, 
                         ROIpoly_n=False, 
                         dtype=np.uint16, 
-                        raw=False
+                        raw=False,
+                        Fnoise=0
                     ):
     '''
-    Follow Rainer's way of getting average odor map or average F or dFoF or raw traces from average raw
-    Average raw frames first across trial and then get dF/F map
+    Follow Rainer's way of getting average odor map:
+      Average raw frames first over frames and across trials to get the most acurate F
+
     
     tags    : a list containing files from one plane only and already in a desired order.
     Foffsets: a numpy arrary matching to tags
@@ -143,11 +146,12 @@ def average_odormaps(
     needF   : Flag to get average F instead of odormap
     ROIpoly_n: a tupple of (list of ROI polygons, list of cell numbers)
     raw     : when ROIpoly_n is not False, return raw pixel values instead of dF/F value
+    Fnoise  : a constant to subtract from pixel values for dark/read noise from PMD.
     '''
     
     if len(tags[0])>10:                                     # Pymagor v2.0 or later
         ver = 2
-    elif len(tags[0]) == 4 and os.path.exists(tags[0][-1]): # from online analysis
+    elif len(tags[0]) in [5, 6] and os.path.exists(tags[0][-1]): # from online analysis
         ver = 2
     else:                                                   # Pymagor v1.0
         ver = 1
@@ -160,16 +164,18 @@ def average_odormaps(
     # http://stackoverflow.com/questions/480214/how-do-you-remove-duplicates-from-a-list-in-python-whilst-preserving-order
     seen = set()  # empty set object
     odors = [x for x in ([dd[2] for dd in tags])
-            if x not in seen and not seen.add(x)]
+              if x not in seen and not seen.add(x)]
     if type(Foffsets) is list:
         Foffsets = np.array(Foffsets)
-    msf = np.abs(Foffsets[:,:2]).max() # max shift
+    maxShift = np.abs(Foffsets[:,:2]).max() # max shift
     
     odormaps = []
     RF_F = []
     
     for odor in odors:
+
         if ver == 2:
+
             file_path = [( dd[0], path_check(dd[-1]) ) for dd in tags if dd[2] == odor]
         else:
             file_path = [( dd[0], path_check(data_path) ) for dd in tags if dd[2] == odor]
@@ -179,7 +185,8 @@ def average_odormaps(
         # looping trials
         for n, ((fname, fpath), (yoff, xoff, r, nn)) in enumerate(zip(file_path, Foffsets.tolist())): 
             fp = os.path.join(fpath, fname)
-            img = opentif(fp, ch=ch, dtype=dtype, filt = None, skip = False)
+            # by definition 'anatomy view' requires averaging all the frames... this should be cached in file
+            img = opentif(fp, ch=ch, dtype=dtype, filt=None, skip=False) - Fnoise
             
             if Autoalign:
                 within_offsets = get_offset_within_trial(fp, ref_ch, durpre, margin, SpatMeds)
@@ -192,8 +199,8 @@ def average_odormaps(
             if temp == None:
                 temp = np.zeros(img.shape, dtype=np.float64)
             else: # align across trials
-                sofar = _applymask(temp.mean(axis=2), msf)
-                new = _applymask(img.mean(axis=2), msf)
+                sofar = _applymask(temp.mean(axis=2), maxShift)
+                new = _applymask(img.mean(axis=2), maxShift)
                 Foffset = corr.fast_corr(np.dstack((sofar, new)), margin=margin, dur=0, SpaMed=SpatMeds)
                 yoff = int(Foffset[1,0])
                 xoff = int(Foffset[1,1])
@@ -212,7 +219,7 @@ def average_odormaps(
             masks = []
             for roi in roipolys:
                 masks.append(getmask(roi,(h,w)))
-                rawimg = _applymask(rawimg, msf)
+                rawimg = _applymask(rawimg, maxShift)
             
             waves = getdFoFtraces(rawimg, durpre, masks, 
                     raw=raw, baseline=False, offset=None, needflip=True)
@@ -221,10 +228,10 @@ def average_odormaps(
             
         else:   # this is the part that produces odor maps!
             F = rawimg[:,:,prest:preend+1].mean(axis=2)
-            RF_F.append(_applymask(F.copy(), msf))
+            RF_F.append(_applymask(F.copy(), maxShift))
             
             #if needF:
-                #odormaps.append(_applymask(F, msf))
+                #odormaps.append(_applymask(F, maxShift))
             #else:  # odor maps
             if len(F[F==0])>0:
                 F[F==0] = F[F.nonzero()].min()
@@ -244,7 +251,7 @@ def average_odormaps(
         return traces, odors
     
     #if withinoffmax:
-        #msf = max(msf, np.max(withinoffmax))
+        #maxShift = max(maxShift, np.max(withinoffmax))
     
     if len(odormaps)>1:
         odormaps = np.dstack(odormaps)
@@ -253,20 +260,20 @@ def average_odormaps(
         odormaps = odormaps[0].reshape(h,w,1) # dig out from the list
         RF_F = RF_F[0].reshape(h,w,1)
     
-    odormaps = _applymask(odormaps, msf)
-    RF_F = _applymask(RF_F, msf)
+    odormaps = _applymask(odormaps, maxShift)
+    RF_F = _applymask(RF_F, maxShift)
     
     return RF_F, odormaps, odors
 
 
-def _applymask(img, msf):
+def _applymask(img, maxShift):
     
-    if msf: # [msf:-msf] indexing would not work if msf = 0
+    if maxShift: # [maxShift:-maxShift] indexing would not work if maxShift = 0
         mask = np.zeros((img.shape), dtype=np.bool)
         if len(mask.shape) == 3:
-            mask[msf:-msf,msf:-msf,:] = True
+            mask[maxShift:-maxShift,maxShift:-maxShift,:] = True
         elif len(mask.shape) == 2:
-            mask[msf:-msf,msf:-msf] = True
+            mask[maxShift:-maxShift,maxShift:-maxShift] = True
         else:
             print 'not supported dimmention'
             return img
@@ -279,14 +286,14 @@ def _applymask(img, msf):
 def shiftmask(mask, (yoff,xoff)):
     
     # Foffset: yoff, xoff, correlation, ind
-    msf = np.abs([yoff, xoff]).max() # max shift
-    if msf:
+    maxShift = np.abs([yoff, xoff]).max() # max shift
+    if maxShift:
         mask = np.roll(mask, int(yoff), axis=0)
         mask = np.roll(mask, int(xoff), axis=1)
         
         # 0 padding the margin
         shifted = np.zeros((mask.shape), dtype=mask.dtype)
-        shifted[msf:-msf,msf:-msf] = mask[msf:-msf,msf:-msf]
+        shifted[maxShift:-maxShift,maxShift:-maxShift] = mask[maxShift:-maxShift,maxShift:-maxShift]
         
         return shifted
     else:

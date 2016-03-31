@@ -24,6 +24,8 @@
 ##  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 ##  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+# TODO: refactor the mess accumurated in image file load: stop calling checkdurs so many times, loading file for 2nd time in average_odormaps
+# TODO: allow copying ROI to the current field-of-view when no matching found.
 
 # STANDARD libraries
 from __future__ import with_statement
@@ -87,7 +89,7 @@ from misc import *
 from create_pymagorsheet_v2 import *
 
 # Global variables
-release_version = '2.7'
+release_version = '2.7.2'
 with open('resources/version.info', 'r') as f:
     __version__ = f.readline().splitlines()[0]
 
@@ -118,13 +120,11 @@ else:
 if not os.path.exists(homedir):
     os.mkdir(homedir)
 
-## if Pymagor.ini exists, use some parameters defined there.
 MPLcache = matplotlib.get_configdir()
 bindir = r'https://github.com/i-namekawa/Pymagor/releases'
 documentationURL = 'https://github.com/i-namekawa/Pymagor/wiki'
 
-
-
+## if Pymagor.ini exists, use some parameters defined there.
 cfg = ConfigParser.ConfigParser()
 cfg.optionxform = str
 results = cfg.read(os.path.join(homedir,'Pymagor.ini'))
@@ -3243,16 +3243,12 @@ class MainFrame(wx.Frame):
 
         data_path = os.path.dirname(self.fp)
         if not tags: # empty list is False
-            tags = [[os.path.basename(self.fp),
-                            'field-of-view_1',
-                            'stim_1',
-                            '1',
-                            data_path]]
+            tags = [[os.path.basename(self.fp), 'field-of-view_1', 'stim_1', '1', data_path]]
         if self.reftr:
             reftr = None
         else:
             refty = 0
-
+        print 'PrepareTrial2', tags
         imgdic, sorted_tag = pack(data_path, tags, all_frame, AvgTr, MaxPr, self, reftr)
 
         if imgdic is not None:
@@ -3672,7 +3668,7 @@ Pymagor is licensed under BSD license (3-clause, see LICENSE.txt)
 
 Video support provided by FFMEPG
 
-Icon arts from findicons.com
+Icon arts from findicons.com (more detail in source code resources folder)
 '''
 
             wx.AboutBox(info)
@@ -3831,8 +3827,6 @@ Icon arts from findicons.com
         id = event.GetId()
         if id == self.ID_AutoRefTr:
             self.reftr = (self.reftr == False)
-        elif id == self.ID_HowManyFrames:
-            self.HowManyFrames = self.HowManyFrames == False
 
     def OnCtxOpen(self, event, items=None):
         if not items:
@@ -3855,7 +3849,7 @@ Icon arts from findicons.com
                     #data_path, fp = os.path.split(self.fp)
                     #print 'passed to open_filetype ', data_path, fp
                     data_files = [[fp, plane, odor, repeat, dirname]]
-                    all_frame = 0
+                    all_frame = 0 # forcing all frame. packing option is only when we stack trials
                     AvgTr = False
                     MaxPr = False
                     if self.reftr:
@@ -3870,15 +3864,14 @@ Icon arts from findicons.com
 
     def OnCtxStack(self, event):
 
-        print 'Stacking selected trials:'
+        print 'Stacking selected trials:', self.HowManyFrames
 
         data_files = []
-        items = self.get_current_selection()
-        for item in items:
+        for item in self.get_current_selection():
             fname = self.sheet.GetItemText(item)
             plane = self.sheet.GetItem(item, 1).GetText()
             odor = self.sheet.GetItem(item, 2).GetText()
-            repeat = 'tr'+ self.sheet.GetItem(item, 3).GetText()
+            repeat = 'tr'+self.sheet.GetItem(item, 3).GetText()
             dirname = self.sheet.GetItem(item, 4).GetText()
             data_files.append([fname, plane, odor, repeat, dirname])
 
@@ -4121,7 +4114,7 @@ class ParamsPanel(wx.Panel):
         x,y = 5, 20
         #scsize = (48,20)
         scsize = (60,20)
-        wx.StaticBox(self, -1, 'Pre- (F) and During-stimulus frames', (x,3), (193,68))
+        wx.StaticBox(self, -1, 'Pre- (F) and During-stimulus frames', (x,3), (193,68+25))
         # DurPre Start
         wx.StaticText(self, -1, 'F period', (x+5,y+3))
         self.IDsc_preS = wx.NewId()
@@ -4151,7 +4144,12 @@ class ParamsPanel(wx.Panel):
         self.sc_resE.SetValue(durres[1])
         self.sc_resE.Bind(wx.EVT_SPINCTRL, self.OnSpin)
 
-        h = 73
+        wx.StaticText(self, -1, 'dark/read noise offset', (x+5,y+28+25))
+        self.IDsc_Fnoise = wx.NewId()
+        self.sc_Fnoise = wx.SpinCtrl(self, self.IDsc_Fnoise, '', (x+126+5,y+25+25), scsize)
+        self.sc_Fnoise.SetRange(0,256**2-1)
+
+        h = 73 + 25
         wx.StaticBox(self, -1, 'Colormap range', (x,h), (193,50+30+25))
         # cmap min
         txt_cmin = wx.StaticText(self, -1, 'dF/F (%)', (x+5, y+h+3))
@@ -4200,16 +4198,14 @@ class ParamsPanel(wx.Panel):
         self.SDthrs = wx.CheckBox(self, -1, '2.5 SD thrs',(x+118,h+y))
         self.Bind(wx.EVT_CHECKBOX, self.OnCheck, self.SDthrs)
 
-
-
         h += 30
         wx.StaticBox(self, -1, 'Load', (x,h+y), (193,45))
         # select ch to load
         wx.StaticText(self, -1, 'Channel', (x+5,h+y+20))
         self.ID_ch = wx.NewId()
         self.ch = wx.SpinCtrl(self, self.ID_ch, '',(50+5,h+y+17), (40,20))
-        self.ch.SetToolTip(wx.ToolTip('ex) If ch1 & ch3 are recorded,\nspecify 1 to open ch3.'))
-        self.ch.SetRange(0,3)
+        self.ch.SetToolTip(wx.ToolTip('zero-indexed! ex) If ch1 & ch3 are recorded in scanimage,\nspecify 1 to open ch3.'))
+        self.ch.SetRange(0,100)
         self.ch.SetValue(ch)
         self.ch.Bind(wx.EVT_SPINCTRL, self.OnSpin)
         # Load as uint8
@@ -4557,8 +4553,7 @@ class BatchLauncher(wx.Panel):
 
         if not working:
 
-            if (fromlauncher is not None and fromlauncher != [])\
-                or datafiles is not None:
+            if (fromlauncher is not None and fromlauncher != []) or datafiles is not None:
                 working = True
                 if not working_singles:
                     self.stacknow.SetLabel('Abort')
@@ -4661,7 +4656,7 @@ def LPMavg(fp, rng, dtype, nch, offsets=None, ch2load=None):
     return (avg[::-1,:] / (np.diff(rng)+1) ).astype(np.float32)
 
 
-def LPMresmap(fp, F, rng, dtype, nch, offsets=None):
+def LPMresmap(fp, F, rng, dtype, nch, offsets=None, Fnoise=0):
     '''low peak memoey odor response map
     (average dF/F over response frames)'''
 
@@ -4674,7 +4669,7 @@ def LPMresmap(fp, F, rng, dtype, nch, offsets=None):
     else:
         im = Image.open(fp)
 
-    F = F[::-1,:] # invert for loop
+    F = F[::-1,:] # invert for loop. Fnoise already subtracted
     for n in fr2load:
 
         if fp.endswith(('TIF','tif','TIFF','tiff')):
@@ -4694,6 +4689,7 @@ def LPMresmap(fp, F, rng, dtype, nch, offsets=None):
             yoff, xoff = offsets[fr, :2]
             curframe = _shift_a_frame(curframe, (-yoff, xoff))
 
+        curframe -= Fnoise
         resmap += (curframe - F)
 
     resmap /= (np.diff(rng)+1)
@@ -4705,7 +4701,7 @@ def LPMresmap(fp, F, rng, dtype, nch, offsets=None):
                 ).astype(np.float32)  # slower but closer to Imagor3 result
 
 
-def lowpeakmemload(fp, dtype, filt=None, skip=False, ch=0):
+def lowpeakmemload(fp, dtype, filt=None, skip=False, ch=0, Fnoise=0):
     '''
     return raw frames, average image and gaussian filtered image
     for tif or ior image in a memory friendly manner
@@ -4732,21 +4728,22 @@ def lowpeakmemload(fp, dtype, filt=None, skip=False, ch=0):
     else:
         offsets = None
 
-    F = LPMavg(fp, _durpre, dtype, nch, offsets, ch2load=ch)
+    F = LPMavg(fp, _durpre, dtype, nch, offsets, ch2load=ch) - Fnoise
     F[F==0] = F[F.nonzero()].min() # avoid zero division when creating movie
 
     if skip:                    # howmanyframe = 1, 2
 
-        raw = opentif(fp, dtype, filt, skip=skip, ch=ch) # opentif can load ior also
+        # opentif can load ior also
+        raw = opentif(fp, dtype, filt, skip=skip, ch=ch) - Fnoise
         DFoFmovie = None
         if nframes<100:
             rng = [0, nframes-1]
         else:
             rng = np.linspace(0, nframes-1, 100).round()
-        anatomy = LPMavg(fp, rng, dtype, nch, offsets, ch2load=ch)
+        anatomy = LPMavg(fp, rng, dtype, nch, offsets, ch2load=ch) - Fnoise
 
     else:                       # howmanyframe = 0
-        raw = opentif(fp, dtype, filt, ch=ch)
+        raw = opentif(fp, dtype, filt, ch=ch) - Fnoise
 
         if offsets is not None:
             if offsets.any():
@@ -4768,7 +4765,7 @@ def lowpeakmemload(fp, dtype, filt=None, skip=False, ch=0):
             print 'Not sufficient memory. dF/F movie skipped.'
             DFoFmovie = None
 
-    resmap = LPMresmap(fp, F, _durres, dtype, nch, offsets)
+    resmap = LPMresmap(fp, F, _durres, dtype, nch, offsets, Fnoise=Fnoise)
 
     if ch != ref_ch:
         print 'Reference channel (%d) is different from loading channel (%d).' % (ref_ch, ch)
@@ -4777,8 +4774,8 @@ def lowpeakmemload(fp, dtype, filt=None, skip=False, ch=0):
 
 
 def checkdurs(fp, parent=None):
-
-    #print 'checkdurs: fp', fp, os.path.exists(fp)
+    
+    # print 'checkdurs: fp', fp, os.path.exists(fp)
     nframes = get_tags(fp)['nframes']
     #print 'nframes', nframes, 'durs', durpre, durres
 
@@ -4796,16 +4793,17 @@ def checkdurs(fp, parent=None):
     return tuple(_durpre), tuple(_durres)
 
 
-def LoadImage(group, data_path, howmanyframe, dtype, parent=None):
+def LoadImage(group, data_path, howmanyframe, dtype, parent=None, Fnoise=0):
     ''' Concatinate trial frame data in a 3D array '''
 
     filt = None # median filter no longer used other than alignment
 
     nframesP, rawP, DFoFfilP, Fpool, ref_Fpool, anatomyP, resP = [],[],[],[],[],[],[]
-    for data in group:
+    for tag in group:
         wx.Yield() # this magically make the app responsive
 
-        fp = path2img(data_path, data)
+        fp = path2img(data_path, tag)
+        # print 'LoadImage fp, tag', fp, tag
         _durpre, _durres = checkdurs(fp, parent=parent)
 
         if howmanyframe==0:     # I need all frames!
@@ -4816,8 +4814,9 @@ def LoadImage(group, data_path, howmanyframe, dtype, parent=None):
             skip = [_durpre[0]]
 
         print 'Loading ', fp
+    
         nframes, raw, F, resmap, anatomy, DFoFmovie = \
-            lowpeakmemload(fp, dtype, skip=skip, ch=ch)
+            lowpeakmemload(fp, dtype, skip=skip, ch=ch, Fnoise=Fnoise)
         if raw is None:
             return None, None, None, None, None, None
 
@@ -4849,9 +4848,9 @@ def LoadImage(group, data_path, howmanyframe, dtype, parent=None):
 
 def path2img(data_path, tag):
     ''' Get the full path to the image data. '''
-    #print 'path2img : ', len(tag), tag, data_path
+    # print 'path2img : ', len(tag), tag, data_path
     path_in_tag = path_check(tag[-1], False)
-    if path_in_tag and (len(tag) == 4 or len(tag) > 10):
+    if path_in_tag and (len(tag) in [4,5] or len(tag) > 10):
             # from context menu or version v2 pymagor sheet.
         data_path = path_in_tag
     else:   # from v1 pymagor sheet.
@@ -4875,7 +4874,9 @@ def pack(data_path, tags, howmanyframe, need_AvgTr, need_MaxPr, parent, reftr=No
         dtype = np.uint8
     else:
         dtype = np.uint16
-
+    
+    Fnoise = parent.ParamsPane.sc_Fnoise.GetValue()
+    
     rawpoolP, FpoolP, respoolP = [],[],[]
     anatomyP, FoffsetP, DFoFfilpoolP = [],[],[]
     odormapsP, RF_FsP, odormap_zodor = [],[],[]
@@ -4908,11 +4909,11 @@ def pack(data_path, tags, howmanyframe, need_AvgTr, need_MaxPr, parent, reftr=No
         eachplane = [ eachplane[ind] for ind in np.lexsort((trials, odors)) ]
 
         nframesP, raw, F, anatomy, res, DFoF = LoadImage(
-                        eachplane, data_path, howmanyframe, dtype, parent)
+                        eachplane, data_path, howmanyframe, dtype, parent, Fnoise)
 
         for n, nframe in enumerate(nframesP):
             eachplane[n].insert(-1, nframe)
-        print eachplane
+        # print 'eachplane', eachplane
         sorted_tag.append(eachplane)
 
         # LoadImage returns None when error or aborted
@@ -4978,7 +4979,8 @@ def pack(data_path, tags, howmanyframe, need_AvgTr, need_MaxPr, parent, reftr=No
                             (SpatMed, SpatMed2),
                             ch=ch,
                             ref_ch=ref_ch,
-                            dtype=dtype
+                            dtype=dtype,
+                            Fnoise=Fnoise
                             )
 
         if len(eachplane) > 1:
@@ -5053,7 +5055,8 @@ def pack(data_path, tags, howmanyframe, need_AvgTr, need_MaxPr, parent, reftr=No
     imgdict['margin'] = margin_dict
 
     if verbose:
-        print '\nAbout %2.2f s to load.' % (time.time() - t0)
+        _sizeof = np.sum([ele.nbytes for ele in imgdict.values() if type(ele) == np.ndarray])/1024.0/1024.0
+        print '\nAbout %2.2f s to load. %2.3f MB' % (time.time() - t0, _sizeof)
 
     return imgdict, sorted_tag
 

@@ -61,7 +61,11 @@ def get_all_tags(fp):
                 meta_data_dict['acqsoftware'] = 'ImageJ'
                 sepstr = '\n'
             elif tags.startswith('scanimage'):
-                meta_data_dict['acqsoftware'] = 'scanimage4'
+                if [l for l in tags.splitlines() if l.find('framerate_user')>0]:
+                    # Peter's SoundCoil resonance Z scan version
+                    meta_data_dict['acqsoftware'] = 'scanimage4B' 
+                else:
+                    meta_data_dict['acqsoftware'] = 'scanimage4'
                 sepstr = '\n'
             elif tags.startswith('state.configPath'):
                 meta_data_dict['acqsoftware'] = 'scanimage3.8'
@@ -180,18 +184,22 @@ def get_tags(fp):
         if 'state.software.version' in Metadata.keys():
             ver = float(Metadata['state.software.version'])
         else:
-            ver = float(acqsoftware.split('scanimage')[-1])
-        img_info['version'] = ver
-        
+            verstr = acqsoftware.split('scanimage')[-1]
+            try:    # most likely '4'
+                ver = float(verstr)
+            except: # but can be 4B
+                ver = verstr
 
-        if float(ver) == 3.8:
+        img_info['version'] = ver
+
+        if ver == 3.8:
             # rename some keys
             float_keys[1] = 'state.acq.scanAngleMultiplierFast'
             float_keys[2] = 'state.acq.scanAngleMultiplierSlow'
-        elif float(ver) == 4:
+        elif ver == 4.0 or ver == '4B':
             float_keys = []
             
-        #3.6-3.8
+        
         if ver == 3.6 or ver == 3.8:
             zdim = int(Metadata['state.acq.numberOfZSlices'])
             frames = int(Metadata['state.acq.numberOfFrames'])
@@ -202,21 +210,32 @@ def get_tags(fp):
                                         Metadata['state.acq.savingChannel2'],
                                         Metadata['state.acq.savingChannel3'],
                                         Metadata['state.acq.savingChannel4']]
-        elif ver == 4:
+        
+        elif ver == 4.0 or ver == '4B':
             zdim = int(Metadata['scanimage.SI4.stackNumSlices '])
             frames = int(Metadata['scanimage.SI4.acqNumFrames '])
-            img_info['nch'] = int(Metadata['scanimage.SI4.channelsSave '])
-            img_info['zoomFactor'] = float(Metadata['scanimage.SI4.scanZoomFactor '])
             
+            img_info['zoomFactor'] = float(Metadata['scanimage.SI4.scanZoomFactor '])
             img_info['averaging'] = int(Metadata['scanimage.SI4.acqNumAveragedFrames '])
             img_info['recorded_ch'] = Metadata['scanimage.SI4.channelsSave ']
             
             img_info['scanAmplitudeX'] = Metadata['scanimage.SI4.scanAngleMultiplierFast ']
             img_info['scanAmplitudeY'] = Metadata['scanimage.SI4.scanAngleMultiplierSlow ']
-            if Metadata['scanimage.SI4.framerate_user_check '] == ' 1':
+            
+            # if Metadata['scanimage.SI4.framerate_user_check '] == ' 1':
+            if ver == '4B':
                 img_info['frameRate'] = Metadata['scanimage.SI4.framerate_user ']
-            else:
+
+                resonancescan = int(Metadata['scanimage.SI4.fastZEnable '])
+                if resonancescan == 1:
+                    # treat z planes from soundcoil z-scan as separate channels
+                    img_info['nch'] = int(Metadata['scanimage.SI4.fastz_cont_nbplanes '])
+                else:
+                    img_info['nch'] = int(Metadata['scanimage.SI4.channelsSave '])
+            else: # ver 4.0
                 img_info['frameRate'] = 'NA'
+                img_info['nch'] = int(Metadata['scanimage.SI4.channelsSave '])
+            
             
         for key in float_keys:
             value = Metadata[key]
@@ -226,7 +245,8 @@ def get_tags(fp):
             else:
                 img_info[key] = float(value)
         
-        # z-stack typically has 10 frames and 50 zdim.
+        # Lastly, figure out the number of frames
+        # e.g. z-stack may has 10 frames (but averaged) and 50 z plane (zdim).
         # odor res has 160 frames and 1 zdim.
         if ver == 3.8:
             n = int(Metadata['state.acq.numAvgFramesSave'])
@@ -237,9 +257,12 @@ def get_tags(fp):
             else:
                 img_info['nframes'] = frames * zdim
         elif ver == 4:
-            n = int(Metadata['scanimage.SI4.acqNumAveragedFrames '])
+            n = int(Metadata['scanimage.SI4.acqNumAveragedFrames ']) # typically 1 unless ztstack
             img_info['nframes'] = frames / n * zdim
-        
+        elif ver == '4B':
+            n = int(Metadata['scanimage.SI4.acqNumAveragedFrames '])
+            img_info['nframes'] = frames / n * zdim / img_info['nch']
+
         
     else:  # unrecognized file types
         
@@ -265,13 +288,15 @@ def opentif(fp,
             filt=None, 
             skip=False, 
             ch=0, 
-            check8bit=False            
+            check8bit=False
             ):
     '''
-    fp: file pointer. full path strings
-    dtype:  np.unit8 or np.uint16 or np.float32
-    filt: PIL filter object.  ex. im.filter(ImageFilter.MedianFilter)
-    skip: a list of durpre and durres to set frames to read.
+    fp      : file pointer. full path strings
+    dtype   :  np.unit8 or np.uint16 or np.float32
+    filt    : PIL filter object.  ex. im.filter(ImageFilter.MedianFilter)
+    skip    : a list of durpre and durres to set frames to read.
+    ch      : channel to read (every n th frame offset by ch, n being total # of channels)
+    check8bit : flag to indicate that we want a histogram of pixel values in 8 bit range.
     '''
     img_info = get_tags(fp)
     if img_info == None:
@@ -287,7 +312,7 @@ def opentif(fp,
     im = Image.open(fp)
     w,h = im.size
     
-    if skip:  
+    if skip:
         if len(skip) == 2:  # load only pre-stimulus and response periods
             durpre, durres = skip
             zsize = np.diff(durpre) + np.diff(durres) + 2
@@ -318,11 +343,14 @@ def opentif(fp,
         
     if fp.endswith(('TIF','tif','TIFF','tiff')) and dtype == np.uint16:
         with tifffile.TIFFfile(fp) as tif: # faster for tiff 8 and 16 bit
-            img = tif.asarray()
+            img = tif.asarray(rng)
+            
             if len(img.shape) == 3:
-                img = img[rng,:,:].transpose((1,2,0))
+                img = img.transpose((1,2,0))
             elif len(img.shape) == 4:
-                img = img[rng,0,:,:].transpose((1,2,0))
+                img = img[:,0,:,:].transpose((1,2,0))
+            elif len(img.shape) == 2:  # packing option = 2 (only first raw frame)
+                img = img[np.newaxis,:,:].transpose((1,2,0))
             else:
                 print 'unknown tif input. axes may be wrong.'
     else:
@@ -380,7 +408,7 @@ if __name__ == '__main__':
     #fp = r'testdata\test50to100.tif'
     
     ## ScanImage 3.6 z-stack
-    fp = r"testdata\scanimage36\PSF001.tif"
+    # fp = r"testdata\scanimage36\PSF001.tif"
 
     ## ScanImage 3.8 z-stack
     #fp = r'testdata\beads004.tif'
@@ -392,7 +420,12 @@ if __name__ == '__main__':
     #fp = r'testdata\ScanImageBTestFiles\Test01_005_.tif'
     ## ScanImage 4B for resonance scan zstack
     #fp = r"testdata\ScanImageBTestFiles\beads_005_.tif"
-    
+    ## ScanImage 4B 9 planes x 110 = 990 frames hw=512x512
+    # fp = r"R:\Data\itoiori\scanimage\2016\2016-03-11\positive01\IN26tested_008_.tif"
+    ## ScanImage 4B 5 planes x 200 = 1000 frames hw=512x512
+    fp = r'R:/Data/itoiori/scanimage/2016/2016-03-22/IN26-pair01-fish04_001_.tif'
+    ## ScanImage 4B zstack
+    # fp = 'R:/Data/itoiori/scanimage/2016/2016-03-11/positive01/IN26tested_025_.tif'
     
     info = get_tags(fp)
     print info
