@@ -40,7 +40,7 @@ The 64-bit binary is possible to build but was too huge (>200 MB, due to numpy/s
   * wx (v2.8.12.1)
   * win32process (MS-Windows only)
   * yapsy
-  * tifffile
+  * tifffile.py (ver 2014.02.05 at the moment)
 3. Clone the git repogitory (https://github.com/i-namekawa/Pymagor.git) and run Pymagor2.py
 
 Bug report
