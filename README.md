@@ -2,6 +2,7 @@ Pymagor: a Python based calcium imaging data analysis tool.
 =======
 
 ![PymagorScreenshot](https://github.com/i-namekawa/Pymagor/blob/images/images/Main-OnlineAnalysisSheet.jpg)
+![TrialViewer](https://github.com/i-namekawa/Pymagor/blob/images/images/TrialViewer.jpg)
 
 ### "ROI drawing made fun"
 
@@ -56,6 +57,5 @@ Pymagor is licensed under a 3-clause BSD style license - see the LICENSE.txt fil
 
 Screenshots
 ------
-![TrialViewer](https://github.com/i-namekawa/Pymagor/blob/images/images/TrialViewer.jpg)
 ![QuickPlot](https://github.com/i-namekawa/Pymagor/blob/images/images/QuickPlot.jpg)
 ![BatchLauncher](https://github.com/i-namekawa/Pymagor/blob/images/images/BatchLauncher.jpg)
