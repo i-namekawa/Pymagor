@@ -137,14 +137,15 @@ def average_odormaps(
                     ):
     '''
     Follow Rainer's way of getting average odor map:
-      Average raw frames first over frames and across trials to get the most acurate F
-
+      For each odor-plane combination, get the most acurate F (RF_F) 
+      by averaging raw frames over frames and across trials and 
+      use this common F for all trials.
     
     tags    : a list containing files from one plane only and already in a desired order.
     Foffsets: a numpy arrary matching to tags
     ch      : channel for multi channel recording
     needF   : Flag to get average F instead of odormap
-    ROIpoly_n: a tupple of (list of ROI polygons, list of cell numbers)
+    ROIpoly_n: a tupple of (list of ROI polygons, list of cell numbers). flag to return dF/F traces instead of image
     raw     : when ROIpoly_n is not False, return raw pixel values instead of dF/F value
     Fnoise  : a constant to subtract from pixel values for dark/read noise from PMD.
     '''
@@ -196,7 +197,7 @@ def average_odormaps(
             if yoff: img = np.roll(img, int(-yoff), axis=0)
             if xoff: img = np.roll(img, int(-xoff), axis=1)
             
-            if temp == None:
+            if temp is None:
                 temp = np.zeros(img.shape, dtype=np.float64)
             else: # align across trials
                 sofar = _applymask(temp.mean(axis=2), maxShift)
@@ -222,7 +223,7 @@ def average_odormaps(
                 rawimg = _applymask(rawimg, maxShift)
             
             waves = getdFoFtraces(rawimg, durpre, masks, 
-                    raw=raw, baseline=False, offset=None, needflip=True)
+                    raw=raw, baseline=False, offset=None, needflip=True) # Fnoise is taken care of
             
             odormaps.append(waves)
             
@@ -300,11 +301,12 @@ def shiftmask(mask, (yoff,xoff)):
         return mask
 
 
-def getdFoFtraces(img, durpre, masks, raw=False, baseline=False, offset=None, needflip=True):
+def getdFoFtraces(img, durpre, masks, raw=False, baseline=False, offset=None, needflip=True, Fnoise=0):
     
     if needflip:
         img = img[::-1,:,:] # pymagor1.0 flip y-axis of the ROI buffer. v2.0's ROI buf does not.
-    
+    img -= Fnoise
+
     nframes = img.shape[2]
     F = img[:, :, durpre[0]:durpre[1]+1].mean(axis=2)  # dure[1]+1 because np indexing needs the first number that you dont want
     F[F==0] = F[F.nonzero()].min()  # replaced with non zero minimum value (important for dFoF movie but here needed?)

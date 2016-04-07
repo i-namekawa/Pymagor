@@ -222,10 +222,8 @@ def get_tags(fp):
             img_info['scanAmplitudeX'] = Metadata['scanimage.SI4.scanAngleMultiplierFast ']
             img_info['scanAmplitudeY'] = Metadata['scanimage.SI4.scanAngleMultiplierSlow ']
             
-            # if Metadata['scanimage.SI4.framerate_user_check '] == ' 1':
             if ver == '4B':
                 img_info['frameRate'] = Metadata['scanimage.SI4.framerate_user ']
-
                 resonancescan = int(Metadata['scanimage.SI4.fastZEnable '])
                 if resonancescan == 1:
                     # treat z planes from soundcoil z-scan as separate channels
@@ -235,7 +233,6 @@ def get_tags(fp):
             else: # ver 4.0
                 img_info['frameRate'] = 'NA'
                 img_info['nch'] = int(Metadata['scanimage.SI4.channelsSave '])
-            
             
         for key in float_keys:
             value = Metadata[key]
@@ -291,7 +288,7 @@ def opentif(fp,
             check8bit=False
             ):
     '''
-    fp      : file pointer. full path strings
+    fp      : file full path strings
     dtype   :  np.unit8 or np.uint16 or np.float32
     filt    : PIL filter object.  ex. im.filter(ImageFilter.MedianFilter)
     skip    : a list of durpre and durres to set frames to read.
