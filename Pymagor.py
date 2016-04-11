@@ -24,15 +24,13 @@
 ##  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 ##  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-# done: context menu to open the data folder in explorer, nautilus, finder etc.
-# done: auto scaling of gray range should ignore zeros in alignment margin.
-# done: after Fnoise added, when multiple trials packed together, anatomy view seems wrong
-# done: dF/F traces not using Fnoise yet (quickplot and PDF report)
-# done: Ref ch was not used for alingment at all. Probably since lowmemorypeakload replaced the old method?
-# done: upgraded tifffile.py from Version 2014.02.05 to 2016.2.22. no changes were needed. it just tifffile-2016.3.18-cp27-cp27m-win_amd64.whl did not like the numpy of WinPython
+# bugfix: average_odormaps in ROImanager.py to use Fnoise param
+# added: save customROIcategory in ini file. edit this to define your own ROI categories
+# added: allow entering new ROI categories in grid and after confirm btn update the list to be saved in ini file.
+# added: option to load ROI data to the current field-of-view even when no matching planes found
 
-# TODO: refactor pack function: stop calling checkdurs so many times, loading file for 2nd time in average_odormaps
-# TODO: allow copying ROI to the current field-of-view when no matching found.
+# TODO: refactor the MESS (pack function and friends): stop calling checkdurs so many times, loading file for 2nd time in average_odormaps
+
 
 # STANDARD libraries
 from __future__ import with_statement
@@ -713,16 +711,19 @@ class trial2(wx.Frame):
                     if not _ind:
                         print 'Field-of-Views found in matfile:', roiz
                         print 'Current Field-of-Views opened:', planesfound
-                        self.parent.showmessage('None of\n%s in the mat file were found in \n%s that are opened' % (roiz, list(planesfound)) )
-                        return
-                    roipoly = [roipoly[n] for n in _ind]
-                    roiz = [roiz[n] for n in _ind]
-                    roi_ctgr = [ str(aa[0]) for aa in a[sname][0][0]['ROI_categories'][0] ]
-                    roi_ctgr = [roi_ctgr[n] for n in _ind]
-
+                        dlg = wx.MessageDialog(None, 'None of\n%s in the mat file were found in \n%s that are opened. Overwrite anyway?' % (roiz, list(planesfound)), style=wx.YES_NO)
+                        if dlg.ShowModal() == wx.ID_NO:
+                            dlg.Destroy()
+                            return
+                        roiz = self.changetitle(wantz=True)
+                        roi_ctgr = 'Cell'
+                    else:
+                        roipoly = [roipoly[n] for n in _ind]
+                        roiz = [roiz[n] for n in _ind]
+                        roi_ctgr = [ str(aa[0]) for aa in a[sname][0][0]['ROI_categories'][0] ]
+                        roi_ctgr = [roi_ctgr[n] for n in _ind]
 
             else: # for roi v1 file, use the current plane name
-
                 roiz = self.changetitle(wantz=True)
                 roi_ctgr = 'Cell'
                 h = a['F'].shape[0]
@@ -3086,6 +3087,8 @@ class MainFrame(wx.Frame):
         self.lastodor = 'Or, pick from pulldown menu'
         self.lastmemo = 'comment here'
 
+        self.customROIcategory = customROIcategory
+
         self.ID_edit = wx.NewId()
         self.OnCheckItems(None)
 
@@ -3372,8 +3375,8 @@ class MainFrame(wx.Frame):
         self._mgr.UnInit()
         self.Destroy()
 
-    @staticmethod
-    def saveini():
+    # @staticmethod
+    def saveini(self):
         data = {
             'Parameter panel' :
                 {'durpre' : durpre,
@@ -3404,6 +3407,9 @@ class MainFrame(wx.Frame):
                 'EXPORT_eachfile' : EXPORT_eachfile,
                 'EXPORT_avgtraces' : EXPORT_avgtraces,
                 'EXPOSE_transpose_collage' : EXPOSE_transpose_collage
+                },
+            'ROI manager' :
+                {'customROIcategory' : self.customROIcategory
                 },
             }
 
@@ -4948,8 +4954,6 @@ def pack(data_path, tags, howmanyframe, need_AvgTr, need_MaxPr, parent, reftr=No
         if raw is None:
             return None, None
         
-        print F_ref.mean(axis=0).mean(axis=0), F.mean(axis=0).mean(axis=0) 
-
         for n, nframe in enumerate(nframesP):
             eachplane[n].insert(-1, nframe)
         sorted_tag.append(eachplane)

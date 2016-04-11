@@ -15,6 +15,7 @@ import wx.lib.gridmovers as gridmovers
 import ROI
 from misc import average_odormaps
 
+defaultCategory = ["Cell", "Neuropil", "Beads"]
 
 def z_prefix(planes):
     
@@ -28,24 +29,22 @@ def z_prefix(planes):
     return _planes
 
 
+def ordersafe_set(data):
+    seen = set()
+    return [d for d in data if d not in seen and not seen.add(d)]
+
 class CustomDataTable(gridlib.PyGridTableBase):
     def __init__(self, roi):
         gridlib.PyGridTableBase.__init__(self)
         
         self._updatedata(roi)
-        #self.rowLabels = [str(n+1) for n in range(len(roi.data))]
         self.colLabels = ["ROI#", "Field-of-View", "Polygon", "Area", "Center", "Category"]
-        defaultCategory = ["Cell", "Neuropil", "Bead"]
-        
-        def ordersafe_set(data):
-            seen = set()
-            return [d for d in data if d not in seen and not seen.add(d)]
         
         self._editor = {
-            1: gridlib.GridCellChoiceEditor(ordersafe_set(roi.z), True),
-            5: gridlib.GridCellChoiceEditor(ordersafe_set(roi.category+defaultCategory), True)
+            1: gridlib.GridCellChoiceEditor(ordersafe_set(roi.z), False),
+            5: gridlib.GridCellChoiceEditor(ordersafe_set([]), True)
                         }
-        
+
     def _updatedata(self, roi):
         self.data = [
             [n+1, z, poly, area, center, catg] 
@@ -167,18 +166,26 @@ class CustomDataTable(gridlib.PyGridTableBase):
 
 
 class DragableGrid(gridlib.Grid):
-    def __init__(self, parent, roi):
+    def __init__(self, parent, roi, customROIcategory):
         gridlib.Grid.__init__(self, parent, -1)
         
-        table = CustomDataTable(roi)
-        self.SetTable(table, True)
+        self.table = CustomDataTable(roi)
+        self.SetTable(self.table, True)
         self.selected = []
-        
+        self.roi = roi
+        self.parent = parent
+        self.customROIcategory = customROIcategory
+
         gridmovers.GridRowMover(self)
-        self.Bind(gridmovers.EVT_GRID_ROW_MOVE, 
-                        self.OnRowMove, self)
-        self.Bind(gridlib.EVT_GRID_RANGE_SELECT, 
-                        self.OnSelect, self)
+        
+        self.Bind(gridmovers.EVT_GRID_ROW_MOVE, self.OnRowMove, self)
+        self.Bind(gridlib.EVT_GRID_RANGE_SELECT, self.OnSelect, self)
+        
+        # dynamically update menu  http://wiki.wxpython.org/GridCellChoiceEditor 
+        self.index = None
+        self.data = None
+        self.Bind(wx.grid.EVT_GRID_EDITOR_CREATED, self.OnGridEditorCreated)
+        self.Bind(wx.grid.EVT_GRID_EDITOR_HIDDEN, self.OnGridEditorHidden)
         
     def OnSelect(self,event):
         self.selected = [_+1 for _ in self.GetSelectedRows()]
@@ -187,6 +194,42 @@ class DragableGrid(gridlib.Grid):
         frm = event.GetMoveRow()          # Row being moved
         to = event.GetBeforeRow()         # Before which row to insert
         self.GetTable().MoveRow(frm,to)
+    
+    #  following 4 methods from http://wiki.wxpython.org/GridCellChoiceEditor
+    def OnGridEditorCreated(self, event):
+        Row = event.GetRow()
+        Col = event.GetCol()
+        if Col == 5: # 5th col is where GridCellChoiceEditors are
+            self.comboBox = event.GetControl()
+            self.comboBox.Bind(wx.EVT_COMBOBOX, self.OnGridComboBox)
+            self.comboBox.Bind(wx.EVT_TEXT, self.OnGridComboBoxText)
+
+            for data in ordersafe_set(self.roi.category+defaultCategory+self.customROIcategory):
+                # Append(str to show in drop list, optional hidden PyObject associated with the str)
+                self.comboBox.Append(data, None)
+        event.Skip()
+
+    def OnGridComboBox(self, event):
+        #Save the index and client data for later use.
+        self.index = self.comboBox.GetSelection()
+        self.data = self.comboBox.GetClientData(self.index)
+        event.Skip()
+
+    def OnGridComboBoxText(self, event):
+        # The index for text changes is always -1. This is how we can tell
+        # that new text has been entered
+        self.index = self.comboBox.GetSelection()
+        event.Skip()
+
+    def OnGridEditorHidden(self, event):
+        #This method fires after editing is finished for any cell.
+        Row = event.GetRow()
+        Col = event.GetCol()
+        if Col == 5 and self.index == -1: # new category is entered to GridCellChoiceEditors
+            item = self.comboBox.GetValue()
+            self.index = self.comboBox.GetCount()
+            self.comboBox.Append(item, None) # we know item is new
+        event.Skip()
 
 
 class ROImanager(wx.Frame):
@@ -198,7 +241,7 @@ class ROImanager(wx.Frame):
         
         panel = wx.PyScrolledWindow(self, wx.ID_ANY)
         panel.SetToolTip(wx.ToolTip('Close this from the button on the image window.'))
-        self.grid = DragableGrid(panel, roi)
+        self.grid = DragableGrid(panel, roi, parent.parent.customROIcategory)
         self.grid.Bind(gridlib.EVT_GRID_CELL_RIGHT_CLICK,
                        self.showPopupMenu)
         width, height = panel.GetSize()
@@ -282,6 +325,7 @@ class ROImanager(wx.Frame):
             margin = parent.param.margin.GetValue()
             SpatMed = parent.param.SpaMed.IsChecked()
             SpatMed2 = parent.param.SpaMed2.IsChecked()
+            Fnoise = parent.param.sc_Fnoise.GetValue()
             ch = parent.ch
             data_path = parent.imgdict['data_path']
             Foffset = np.array(Foffset)
@@ -295,7 +339,8 @@ class ROImanager(wx.Frame):
                                                 (SpatMed, SpatMed2),
                                                 ch=ch, 
                                                 ROIpoly_n=(ROIpolys, ROIfound), 
-                                                raw=raw)
+                                                raw=raw,
+                                                Fnoise=Fnoise)
         else:
             dFoF, ROIfound = parent.getdFoF(fp, dtype=np.uint16, offset=Foffset, raw=raw)
         
@@ -337,6 +382,7 @@ class ROImanager(wx.Frame):
         
         data = self.grid.GetTable().data
         roi = ROI.ROIv3()
+        categoryP = []
         runok = True
         for n, z, poly, area, center, category in data:
             # print 'OnConfirm', n, z, poly, area, center, category
@@ -350,19 +396,36 @@ class ROImanager(wx.Frame):
             elif type(poly) == list:
                 # meaning ROI polygon unchanged
                 roi.add(poly, z=z, category=category)
+            categoryP.append(category)
 
         if runok:
             self.parent.ROI = roi
+            # saveini uses the main frame's customROIcategory attribute
+            self.parent.parent.customROIcategory =  ordersafe_set(
+                self.parent.parent.customROIcategory+[item for item in categoryP if item not in defaultCategory])
         self.parent.Refresh()
 
 
+
 if __name__ == "__main__":
-    class dummy(wx.Frame):
+    class Main(wx.Frame):
         def __init__(self):
-            wx.Frame.__init__(self, None, -1, "dummy trial2")
+            wx.Frame.__init__(self, None, -1, "dummy Pymagor")
+            self.customROIcategory = ['OB', 'TC']
+            self.quit = wx.Button(self, -1, 'Kill the process')
+            self.quit.Bind(wx.EVT_BUTTON, self.OnQuit)
+            self.Show()
+        
+        def OnQuit(self, event):
+            self.Destroy()
+
+    class dummy(wx.Frame):
+        def __init__(self, main):
+            wx.Frame.__init__(self, main, -1, "dummy trial2")
             self.ROI = None
-    
-    app = wx.App()
+            self.parent = main
+     
+    app = wx.App(0)  # 0 to redirect error
     
     roi = ROI.ROIv3()
     roi.add([(92, 10), (94, 14), (94, 19), (90, 23)], 'z0','Skin')
@@ -370,7 +433,8 @@ if __name__ == "__main__":
     roi.add([(66, 92), (63, 97), (56, 98), (55, 93), (57, 88), (60, 86), (65, 86), (67, 92)], 'z10')
     roi.add([(16, 112), (60, 86), (65, 86), (67, 92)], 'z-10')
     
-    trial2 = dummy()
+    pymagor = Main()
+    trial2 = dummy(pymagor)
     
     frame = ROImanager(trial2, roi, pos=wx.DefaultPosition).Show()
     app.MainLoop()
