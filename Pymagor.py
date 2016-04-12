@@ -24,13 +24,10 @@
 ##  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 ##  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-# bugfix: average_odormaps in ROImanager.py to use Fnoise param
-# added: save customROIcategory in ini file. edit this to define your own ROI categories
-# added: allow entering new ROI categories in grid and after confirm btn update the list to be saved in ini file.
-# added: option to load ROI data to the current field-of-view even when no matching planes found
+
+# fixed: handle the case where customROIcategory is not defined in ini file.
 
 # TODO: refactor the MESS (pack function and friends): stop calling checkdurs so many times, loading file for 2nd time in average_odormaps
-
 
 # STANDARD libraries
 from __future__ import with_statement
@@ -171,6 +168,8 @@ else:
     EXPORT_avgtraces = True
     EXPOSE_transpose_collage = True
 
+    customROIcategory = []
+
 anatomy_method = False
 Overlay = False
 cutoff = -cmin
@@ -187,6 +186,9 @@ CntxPlugin = {}  # plugin objects dictionary for context menu
 
 img_keys = ['unshifted frames', 'dFoFfil', 'F', 'dFoFavg', 'anatomy',
             'avg_F', 'avg_odormaps', 'avg projection', 'max projection']
+
+if 'customROIcategory' not in dir():
+    customROIcategory = []
 
 # load odor and plane persistency file
 PlaneList = []
