@@ -30,8 +30,8 @@ The 64-bit binary is possible to build but was too huge (>200 MB, due to numpy/s
 
 ### Hard way (for development, on Linux/Mac, and to run on 64-bit Python)
 
-1. Install the latest Python 2.7 series. For Windows, Python(x,y) for 32-bit and WinPython for 64-bit are recommended.
-2. Install all the Dependencies. Python(x,y) covers most of these.
+1. Install the latest Python 2.7 series. For Windows, Python(x,y) for 32-bit and WinPython or Anaconda for 64-bit are recommended.
+2. Install all the Dependencies. Python(x,y) covers most of these. 
   * pillow
   * numpy
   * scipy (v0.12.0 or greater)
@@ -41,8 +41,20 @@ The 64-bit binary is possible to build but was too huge (>200 MB, due to numpy/s
   * wx (v2.8.12.1)
   * win32process (MS-Windows only)
   * yapsy
-  * tifffile.py (ver 2014.02.05 and 2016.02.22 I built work. But Golke's whl doesn't like numpy from WinPython.)
+  * tifffile.py (ver 2014.02.05 and 2016.02.22 I built worked with WinPython. 2016.3.18 whl seems to work with anaconda)
 3. Clone the git repogitory (https://github.com/i-namekawa/Pymagor.git) and run Pymagor2.py
+
+#### Conda command to set up Python 2.7 (64-bit) for Pymagor
+
+* conda create -n pymagor_env python=2.7 xlrd xlwt matplotlib scipy pillow
+* activate pymagor_env (win) or source activate pymagor_env (Linux/Mac)
+* then install 4 more libralies as follows
+ * yapsy: pip install yapsy 
+ * wxpython2.8: use the official exe installer from sourceforge and specify the envs/pymagor_env/lib/site-packages
+ * win32process: pip install pywin32-220-cp27-none-win_amd64.whl from Gohlke's site and run   
+              python.exe Scripts\pywin32_postinstall.py -install with evelated CMD
+ * tifffile: pip install tifffile-2016.3.18-cp27-cp27m-win_amd64.whl (or newer) from Gohlke's site
+
 
 Bug report
 -------
