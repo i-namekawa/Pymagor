@@ -25,8 +25,6 @@
 ##  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-# fixed: handle the case where customROIcategory is not defined in ini file.
-
 # TODO: refactor the MESS (pack function and friends): stop calling checkdurs so many times, loading file for 2nd time in average_odormaps
 
 # STANDARD libraries
@@ -1992,12 +1990,16 @@ class trial2(wx.Frame):
                 ticks = [255*(a-cmin)/(cmax-cmin) for a in clabel]
                 clabel = ['%3.1f%%' % a for a in clabel]
             ax.axis('off')
-            ax.set_title(title, fontsize=10)
+            ax.set_title(title, fontsize=min_fontsize)
             if self.parent.export_transpose_collage.IsChecked():
-                cbar = figure.colorbar(mappable, ticks=ticks, orientation='horizontal')
+                _orientation = 'horizontal'
             else:
-                cbar = figure.colorbar(mappable, ticks=ticks)
+                _orientation = 'vertical'
+            cbar = figure.colorbar(mappable, ticks=ticks, orientation=_orientation, 
+                                    fraction=0.049, pad=0.01)
             cbar.ax.set_xticklabels(clabel)
+            cbar.ax.tick_params(labelsize=min_fontsize)
+            cbar.outline.set_visible(False)
 
         # prepare collage which comes after pages for individual trials
         collage = plt.figure(figsize=[6,4])
@@ -2027,6 +2029,7 @@ class trial2(wx.Frame):
 
             subplot1 = eachtrial.add_subplot(221)
             frame = self.imgdict['F'][::-1,:,ind]
+            frame[frame==0] = frame[frame.nonzero()].min()
             Hi, Lo = gethilo(frame)
             frame = self.manualscale(frame, Hi, Lo)
             myimshow(eachtrial, subplot1, frame, os.path.basename(os.path.dirname(fp)))
@@ -2037,16 +2040,17 @@ class trial2(wx.Frame):
 
             fontsize = int(min_fontsize+(30-nfiles)/30)-(len(title)>25)
             found_ROIs = []
+
+            colors = ('b', 'g', 'r', 'c', 'm', 'y')
             for ind2, roi in enumerate(self.ROI.data):
+                color = colors[np.mod(ind2,6)]
                 if self.ROI.z[ind2] == self.tag[ind][1]:
                     found_ROIs.append(ind2+1)
                     roi = [(x,y) for x,y in roi]
-                    subplot1.add_patch(Polygon(roi, edgecolor='w',
-                                            closed=True, fill=False))
-                    subplot2.add_patch(Polygon(roi, edgecolor='w',
-                                            closed=True, fill=False))
-                    x, y = np.median(np.array(roi),axis=0)
-                    subplot1.text(x,y,str(ind2+1), color='r', fontsize=fontsize)
+                    subplot1.add_patch(Polygon(roi, edgecolor=color, closed=True, fill=False))
+                    subplot2.add_patch(Polygon(roi, edgecolor=color, closed=True, fill=False))
+                    x, y = np.median(np.array(roi), axis=0)
+                    subplot1.text(x*1.2+self.w, y, str(ind2+1), color=color, fontsize=fontsize)
 
             dFoFtracesPool.append([dFoFtraces, z, found_ROIs])
             rawtracesPool.append([rawtraces, z, found_ROIs])
@@ -2055,6 +2059,7 @@ class trial2(wx.Frame):
             if dFoFtraces is not None:
                 sb_trace = self.plot(subplot, dFoFtraces, label=found_ROIs)
             subplot.set_title(title)
+            plt.tight_layout()
 
             if self.parent.export_eachfile.IsChecked():
                 eachtrial.savefig(pp, format='pdf')
@@ -2072,8 +2077,8 @@ class trial2(wx.Frame):
             cllg.set_title(title, fontsize=fontsize)
             cllg.title.set_y(0.95)
             collage.canvas.draw()
-
             cllg.axis('off')
+            plt.tight_layout()
 
         collage.savefig(pp, format='pdf')
         if self.parent.export_needplotting.IsChecked():
@@ -2185,6 +2190,7 @@ class trial2(wx.Frame):
                 cllg2 = collage_F.add_subplot(int(ncol), int(nrow), ind2+1)
             else:
                 cllg2 = collage_F.add_subplot(int(nrow), int(ncol), ind2+1)
+            F[F==0] = F[F.nonzero()].min()
             Hi, Lo = gethilo(F[::-1,:,0])
             cllg2.imshow(self.manualscale(F[::-1,:,0], Hi, Lo), cmap=matplotlib.cm.gray)
             cllg2.set_title(title, fontsize=fontsize)
@@ -2208,12 +2214,13 @@ class trial2(wx.Frame):
                     self.plot(subplot3, avg_traces, label=found_ROIs)
                 subplot3.set_title(title)
 
+                plt.tight_layout()
                 avg_trace_fig.savefig(pp, format='pdf')
                 if self.parent.export_needplotting.IsChecked():
                     #avgtraces.Show(True)
                     avg_trace_fig.show()
 
-        txt='Pymagor v%s (rev %s);\ndurpre = [%d, %d], durres = [%d, %d];\nmargin ' % (release_version,__version__, durpre[0],durpre[1],durres[0],durres[1])
+        txt='Pymagor v%s (rev %s)\ndurpre = [%d, %d], durres = [%d, %d]\nBackground noise offset= %d;margin ' % (release_version,__version__, durpre[0],durpre[1],durres[0],durres[1], Fnoise)
         txt += ', '.join([': '.join((key,str(item))) for key,item in self.imgdict['margin'].items()])
         cllg2.annotate(txt, (0,0), xytext=(0.03, 0.03), textcoords='figure fraction', fontsize=7)
 
