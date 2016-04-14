@@ -24,9 +24,8 @@
 ##  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 ##  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-# done: PDF export dF/F trace plot labeing improvement.
+# fixed: error when the zooming range goes outside of image.
 
-# TODO: error when zooming range goes outside of image.
 # TODO: refactor the MESS (pack function and friends): stop calling checkdurs so many times, loading file for 2nd time in average_odormaps
 
 # STANDARD libraries
@@ -773,7 +772,20 @@ class trial2(wx.Frame):
             w = w*(w>h) + h*(h>=w)
             h = w*(w>h) + h*(h>=w)
 
-        return self.st_x+w, self.st_y+h
+        # outside of image? 
+        ex,ey = self.st_x+w, self.st_y+h
+        if ex >= self.w:
+            ex = self.w
+            w = self.w - self.st_x
+            h = w * self.h / self.w
+            ey = self.st_y+h
+        if ey >= self.h:
+            ey = self.h
+            h = self.h - self.st_y
+            w = h * self.w / self.h
+            ex = self.st_x + w
+        
+        return ex, ey
 
     def init_workers(self):
         self.workers = {}
@@ -2460,6 +2472,7 @@ class trial2(wx.Frame):
 
         if (not event.IsButton() and ## only when mouse moved
             event.GetWheelDelta() == 0):
+            # print 'OnMouse nx, ny', nx, ny
             self.curx, self.cury = nx, ny # update current position
             self.refresh_buf()
 
@@ -2470,10 +2483,11 @@ class trial2(wx.Frame):
 
         ## zooming mode
         if self.zoomingmode:
-            if event.LeftDown():  # state change (not LeftIsDown)
+            if event.LeftDown() and self.st_x is None:  # state change (not LeftIsDown)
                 self.st_x, self.st_y = nx, ny
                 #print 'zooming rect drawing started'
             elif event.LeftUp() and self.st_x and self.st_y:  # state change (not LeftIsUp)
+                # when too small 
                 if self.st_x-2 < nx < self.st_x+2 and \
                    self.st_y-2 < ny < self.st_y+2:
                     self.zoomrect = (0,0,self.w,self.h)
