@@ -24,7 +24,9 @@
 ##  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 ##  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+# done: PDF export dF/F trace plot labeing improvement.
 
+# TODO: error when zooming range goes outside of image.
 # TODO: refactor the MESS (pack function and friends): stop calling checkdurs so many times, loading file for 2nd time in average_odormaps
 
 # STANDARD libraries
@@ -1040,8 +1042,8 @@ class trial2(wx.Frame):
             marker = markers[int(np.mod(np.floor(n/6),3))]
             _trace = data[:,n]
             subplot.plot(_trace, linestyle=linestyle, color=color, marker=marker )
-            marker_pos = np.abs(_trace[self.durpre[1]:]).argmax()+self.durpre[1]
-            subplot.text(marker_pos, _trace[marker_pos], label[n], color=color, fontproperties=fontBold)
+            marker_pos = np.abs(_trace[self.durpre[0]:]).argmax()+self.durpre[0]
+            subplot.text(marker_pos, _trace[marker_pos]*1.2, label[n], color=color, alpha=0.7) #fontproperties=fontBold
 
         subplot.set_xlabel('Frames')
         subplot.set_xlim([0, data.shape[0]])
@@ -1063,6 +1065,7 @@ class trial2(wx.Frame):
 
         subplot.plot(self.durpre,[Ymin*0.99, Ymin*0.99], color='blue', linewidth=2)
         subplot.plot(self.durres,[Ymin*0.99, Ymin*0.99], color='red', linewidth=2)
+        plt.tight_layout()
 
     def Plugin(self, event):
 
@@ -2050,7 +2053,7 @@ class trial2(wx.Frame):
                     subplot1.add_patch(Polygon(roi, edgecolor=color, closed=True, fill=False))
                     subplot2.add_patch(Polygon(roi, edgecolor=color, closed=True, fill=False))
                     x, y = np.median(np.array(roi), axis=0)
-                    subplot1.text(x*1.2+self.w, y, str(ind2+1), color=color, fontsize=fontsize)
+                    subplot1.text(x*1.15+self.w, y, str(ind2+1), color=color, fontsize=fontsize)
 
             dFoFtracesPool.append([dFoFtraces, z, found_ROIs])
             rawtracesPool.append([rawtraces, z, found_ROIs])
