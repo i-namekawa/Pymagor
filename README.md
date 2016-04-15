@@ -30,8 +30,8 @@ The 64-bit binary is possible to build but was too huge (>200 MB, due to numpy/s
 
 ### Hard way (for development, on Linux/Mac, and to run on 64-bit Python)
 
-1. Install the latest Python 2.7 series. For Windows, Anaconda 64-bit python2.7 series are recommended. (WinPython no longer recommended because the latest WinPython2.7 series still uses numpy 1.9.3 but tifffile.py needs numpy 1.10)
-2. Install all the Dependencies (see below for Anaconda example)
+1. Install the latest Python 2.7 series. For Windows, Anaconda 64-bit Python 2.7 is recommended. (WinPython no longer recommended because the latest WinPython2.7 still uses numpy 1.9.3 but the latest tifffile.py needs numpy 1.10)
+2. Install all the dependencies (see below for Anaconda example)
   * pillow
   * numpy (1.10 or newer)
   * scipy (v0.12.0 or newer)
@@ -44,17 +44,16 @@ The 64-bit binary is possible to build but was too huge (>200 MB, due to numpy/s
   * tifffile.py (ver 2014.02.05 or 2016.02.22 I built worked with WinPython. 2016.3.18 whl seems to work with Anaconda)
 3. Clone the git repogitory (https://github.com/i-namekawa/Pymagor.git) and run Pymagor2.py
 
-#### Conda command to set up Python 2.7 (64-bit) for Pymagor
+#### Conda command to set up Python 2.7.* (64-bit) for Pymagor
 
 * Install Miniconda (or full anaconda) for conda command line tool
-* conda create -n pymagor_env python=2.7 xlrd xlwt matplotlib scipy pillow
-* activate pymagor_env (win) or source activate pymagor_env (Linux/Mac)
-* then install 4 more libralies as follows
- * yapsy: pip install yapsy 
- * wxpython2.8: use the official exe installer from sourceforge and specify the envs/pymagor_env/lib/site-packages
- * win32process: pip install pywin32-220-cp27-none-win_amd64.whl from Gohlke's site and run   
-              python.exe Scripts\pywin32_postinstall.py -install with evelated CMD
- * tifffile: pip install tifffile-2016.3.18-cp27-cp27m-win_amd64.whl (or newer) from Gohlke's site
+* `conda create -n pymagor_env python=2.7 xlrd xlwt matplotlib scipy pillow`
+* `activate pymagor_env` (win) or `source activate pymagor_env` (Linux/Mac)
+* then install 4 more libralies as follows:
+ * yapsy: `pip install yapsy`
+ * wxpython2.8: use the official exe installer from sourceforge (wxPython2.8-win64-unicode-2.8.12.1-py27.exe) and choose C:/Miniconda3/envs/pymagor_env/lib/site-packages
+ * win32process: open an evelated CMD.exe (Right click -> Run as Admin). `activate pymagor_env` and then `pip install pywin32-220-cp27-none-win_amd64.whl` from Gohlke's site (http://www.lfd.uci.edu/~gohlke/pythonlibs/#pywin32) and `python.exe C:/Miniconda3/envs/pymagor_env/Scripts/pywin32_postinstall.py -install`
+ * tifffile: `pip install tifffile-2016.4.13-cp27-cp27m-win_amd64.whl` (or newer) from Gohlke's site at http://www.lfd.uci.edu/~gohlke/pythonlibs/#vlfd
 
 
 Bug report
