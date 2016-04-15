@@ -41,7 +41,7 @@ The 64-bit binary is possible to build but was too huge (>200 MB, due to numpy/s
   * wx (v2.8.12.1)
   * win32process (MS-Windows only)
   * yapsy
-  * tifffile.py (ver 2014.02.05 or 2016.02.22 I built worked with WinPython. 2016.3.18 whl seems to work with Anaconda)
+  * tifffile.py (ver 2016.4.13)
 3. Clone the git repogitory (https://github.com/i-namekawa/Pymagor.git) and run Pymagor2.py
 
 #### Conda command to set up Python 2.7.* (64-bit) for Pymagor
