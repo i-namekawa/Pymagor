@@ -24,6 +24,10 @@
 ##  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 ##  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+# remove dependency on win32process, yapsy will stay
+# check the platform is windows when creating avi with ffmpeg.exe.
+# update avi creation code for PIL/pillow API changes
+
 # TODO: refactor the MESS (pack function and friends): stop calling checkdurs so many times, loading file for 2nd time in average_odormaps
 
 # STANDARD libraries
@@ -41,7 +45,7 @@ from PIL import TiffImagePlugin  # for py2exe
 import numpy as np
 import scipy.ndimage
 import scipy.io as sio
-from scipy.sparse.csgraph import _validation  # # for py2exe
+from scipy.sparse.csgraph import _validation  ## for py2exe
 if int(scipy.__version__.split('.')[1])>11:
     from scipy.spatial import ConvexHull
 
@@ -74,7 +78,10 @@ import wx.lib.mixins.listctrl as listmix
 import wx.py
 
 if myOS == 'Windows':
-    from win32process import CREATE_NO_WINDOW
+    try:
+        from win32process import CREATE_NO_WINDOW
+    except ImportError:
+        CREATE_NO_WINDOW = 134217728
 
 from yapsy.PluginManager import PluginManager
 
@@ -88,7 +95,7 @@ from misc import *
 from create_pymagorsheet_v2 import *
 
 # Global variables
-release_version = '2.7.2'
+release_version = '2.7.3'
 with open('resources/version.info', 'r') as f:
     __version__ = f.readline().splitlines()[0]
 
@@ -1177,8 +1184,8 @@ class trial2(wx.Frame):
 
             w = int(self.w*self.ScalingFactor)
             h = int(self.h*self.ScalingFactor)
-            im = Image.fromstring('RGB',(w,h), buf)
-            self.p.stdin.write(im.tostring('jpeg','RGB'))
+            im = Image.frombytes('RGB',(w,h), buf)
+            self.p.stdin.write(im.tobytes('jpeg','RGB'))
 
     def autoPSFplot(self, blobthrs, blobsize, zstep, ROImax):
 
@@ -1549,6 +1556,10 @@ class trial2(wx.Frame):
             dlg.Destroy()
 
     def OnCtxRec(self, event):
+
+        if myOS != 'Windows':
+            'only windows suported at the moment'
+            return
 
         if self.record:
             # cancel rec
