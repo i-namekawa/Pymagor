@@ -41,20 +41,21 @@ The 64-bit binary is possible to build but was too huge (>200 MB, due to numpy/s
   * wx (v2.8.12.1)
   * yapsy
   * tifffile.py (ver 2016.4.13)
-3.* (optional and MS-Windows only) win32process
+  * (optional and MS-Windows only) win32process
+3.
    Clone the git repogitory (https://github.com/i-namekawa/Pymagor.git) and run Pymagor2.py
 
 #### Conda command to set up Python 2.7.* (64-bit) for Pymagor
 
 * Install Miniconda (or full anaconda) for conda command line tool
-* `conda create -n pymagor_env python=2.7 xlrd xlwt matplotlib scipy pillow`
+* `conda create -n pymagor_env python=2.7 xlrd xlwt matplotlib scipy=0.16.0 pillow`
 * `activate pymagor_env` (win) or `source activate pymagor_env` (Linux/Mac)
 * then install 4 more libralies as follows:
  * yapsy: `pip install yapsy`
  * wxpython2.8: use the official exe installer from sourceforge (wxPython2.8-win64-unicode-2.8.12.1-py27.exe) and choose C:/Miniconda3/envs/pymagor_env/lib/site-packages
- * win32process: open an evelated CMD.exe (Right click -> Run as Admin). `activate pymagor_env` and then `pip install pywin32-220-cp27-none-win_amd64.whl` from Gohlke's site (http://www.lfd.uci.edu/~gohlke/pythonlibs/#pywin32) and `python.exe C:/Miniconda3/envs/pymagor_env/Scripts/pywin32_postinstall.py -install`
  * tifffile: `pip install tifffile-2016.4.13-cp27-cp27m-win_amd64.whl` (or newer) from Gohlke's site at http://www.lfd.uci.edu/~gohlke/pythonlibs/#vlfd
-
+ * (optional) win32process: open an evelated CMD.exe (Right click -> Run as Admin). `activate pymagor_env` and then `pip install pywin32-220-cp27-none-win_amd64.whl` from Gohlke's site (http://www.lfd.uci.edu/~gohlke/pythonlibs/#pywin32) and `python.exe C:/Miniconda3/envs/pymagor_env/Scripts/pywin32_postinstall.py -install`
+ 
 
 Bug report
 -------
