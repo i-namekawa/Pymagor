@@ -34,15 +34,15 @@ The 64-bit binary is possible to build but was too huge (>200 MB, due to numpy/s
 2. Install all the dependencies (see below for Anaconda example)
   * pillow
   * numpy (1.10 or newer)
-  * scipy (v0.12.0 or newer)
+  * scipy (v0.12.0 or newer. For anaconda, 0.16.0 recommended due to scipy.io.loadmat bug in anaconda)
   * matplotlib
   * xlrd
   * xlwt
   * wx (v2.8.12.1)
-  * win32process (MS-Windows only)
   * yapsy
   * tifffile.py (ver 2016.4.13)
-3. Clone the git repogitory (https://github.com/i-namekawa/Pymagor.git) and run Pymagor2.py
+3.* (optional and MS-Windows only) win32process
+   Clone the git repogitory (https://github.com/i-namekawa/Pymagor.git) and run Pymagor2.py
 
 #### Conda command to set up Python 2.7.* (64-bit) for Pymagor
 
