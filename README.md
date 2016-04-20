@@ -31,6 +31,7 @@ The 64-bit binary is possible to build but was too huge (>200 MB, due to numpy/s
 ### Hard way (for development, on Linux/Mac, and to run on 64-bit Python)
 
 1. Install the latest Python 2.7 series. For Windows, Anaconda 64-bit Python 2.7 is recommended. (WinPython no longer recommended because the latest WinPython2.7 still uses numpy 1.9.3 but the latest tifffile.py needs numpy 1.10)
+
 2. Install all the dependencies (see below for Anaconda example)
   * pillow
   * numpy (1.10 or newer)
@@ -42,6 +43,7 @@ The 64-bit binary is possible to build but was too huge (>200 MB, due to numpy/s
   * yapsy
   * tifffile.py (ver 2016.4.13)
   * (optional and MS-Windows only) win32process
+
 3.
    Clone the git repogitory (https://github.com/i-namekawa/Pymagor.git) and run Pymagor2.py
 
