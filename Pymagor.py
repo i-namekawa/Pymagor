@@ -24,10 +24,12 @@
 ##  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 ##  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+# done
 # remove dependency on win32process, yapsy will stay
-# check the platform is windows when creating avi with ffmpeg.exe.
+# check if the platform is windows when creating avi with ffmpeg.exe.
 # update avi creation code for PIL/pillow API changes
 
+# TODO: MATLAB generated color tiff support is broken but maybe no one needs this. Let's drop it
 # TODO: refactor the MESS (pack function and friends): stop calling checkdurs so many times, loading file for 2nd time in average_odormaps
 
 # STANDARD libraries
@@ -38,7 +40,7 @@ import re, subprocess, sys, time, webbrowser
 myOS = platform.system()
 
 # 3rd party libraries
-from PIL import Image
+from PIL import Image # actually pillow
 from PIL import ImageDraw
 from PIL import TiffImagePlugin  # for py2exe
 
@@ -77,12 +79,6 @@ import wx.lib.delayedresult as delayedresult
 import wx.lib.mixins.listctrl as listmix
 import wx.py
 
-if myOS == 'Windows':
-    try:
-        from win32process import CREATE_NO_WINDOW
-    except ImportError:
-        CREATE_NO_WINDOW = 134217728
-
 from yapsy.PluginManager import PluginManager
 
 
@@ -99,6 +95,7 @@ release_version = '2.7.3'
 with open('resources/version.info', 'r') as f:
     __version__ = f.readline().splitlines()[0]
 
+CREATE_NO_WINDOW = 134217728 # used in windows only (taken from win32process.CREATE_NO_WINDOW)
 
 # hardcoding the difference between xp and win7
 # because wx2.8 does not support vista and above yet
@@ -108,10 +105,10 @@ if myOS == 'Windows':
     magnifier = wx.CURSOR_MAGNIFIER
     _keys = os.environ.keys()
     if 'HOMESHARE' in _keys:
-        homedir = os.path.join(os.environ['HOMESHARE'], 'pymagor') # FMI shared network drive
+        homedir = os.path.join(os.environ['HOMESHARE'], 'pymagor') # shared network drive
         # using HOMESHARE rather than USERPROFILE here, because
-        # FMI Group policy may redirect USERPROFILE to HOMESHARE when exists
-    elif 'USERPROFILE' in _keys: # FMI XP machine legacy stuff? I dont recall...
+        # Group policy Our IT did may redirect USERPROFILE to HOMESHARE when exists
+    elif 'USERPROFILE' in _keys: # XP machine legacy stuff? I dont recall...
         homedir = os.path.join(os.environ['USERPROFILE'], 'Documents\\pymagor')
     if platform.win32_ver()[0] == 'XP':  # resizable boarder is thin on XP.
         ymargin = (24, 32)
@@ -140,6 +137,9 @@ if results: ## if Pymagor.ini exists, use it for user params
         for key, value in cfg.items(section):
             exec key + '=' + value
     ini_log = 'Pymagor.ini file found.'
+    # ini file from old ver will not have customROIcategory
+    if 'customROIcategory' not in dir():
+        customROIcategory = []
 else:
     ## default parameters that are normally defined in Pymagor.ini
     ini_log = 'No Pymagor.ini found.'
@@ -190,9 +190,6 @@ CntxPlugin = {}  # plugin objects dictionary for context menu
 
 img_keys = ['unshifted frames', 'dFoFfil', 'F', 'dFoFavg', 'anatomy',
             'avg_F', 'avg_odormaps', 'avg projection', 'max projection']
-
-if 'customROIcategory' not in dir():
-    customROIcategory = []
 
 # load odor and plane persistency file
 PlaneList = []
@@ -4691,8 +4688,10 @@ def LPMavg(fp, rng, dtype, nch, offsets=None, ch2load=None):
     if fp.endswith(('TIF','tif','TIFF','tiff')):
         imfile = tifffile.TIFFfile(fp)
         avg = imfile.asarray(fr2load[0]).astype(np.uint64)
+
         if len(avg.shape) == 3:
             avg = avg[0,:,:]
+
     else: # use pillow for non-tiff
         im = Image.open(fp)
         w,h = im.size
@@ -4733,6 +4732,7 @@ def LPMresmap(fp, F, rng, dtype, nch, offsets=None, Fnoise=0):
     (average dF/F over response frames)'''
 
     h,w = F.shape
+
     resmap = np.zeros( (h,w), dtype=np.float64 )
     fr2load = np.arange(rng[0], rng[1]+1) * nch + ch # ch is global var
 
@@ -4938,6 +4938,32 @@ def path2img(data_path, tag):
 
 
 def pack(data_path, tags, howmanyframe, need_AvgTr, need_MaxPr, parent, reftr=None):
+    '''
+    data_path: usually the parent folder path of the image files which can be in subfolders.
+    tags:       a list of image file meta data [fname, plane, stim, trial, ..., folder]
+    howmanyframe: int. option for raw frames to pack.   0:all raw frames. 1: only pre(F) and res raw frames, 2: only the first raw frame of pre (F)
+    need_AvgTr: bool. average projection through all trials for the field-of-view
+    need_MaxPr: bool. max projection through all trials for the field-of-view
+    parent: trial2 class instance. used to get Fnoise from GUI and to show some dialog when needed.
+
+    also rely on these global vars:
+
+    verbose: bool. if True, show more debugging/processing message
+    fastLoad : bool. if True, dtype=np.uint8 otherwise uint16
+    ch: int specifying channel to load
+    ref_ch: int specifying the reference channel for trial alignment to load
+    Fnoise: int specifying the background noise to subtract from F
+    durpre: tuple of (int, int) specifying frame numbers (beggining and end of F baseline period)
+    durres: tuple of (int, int) specifying frame numbers (beggining and end of response period)
+
+    Processing flow:
+        1. find unique_planes in [tags] and loop through each
+            2. for each unique plane, load F_ref (frame average of image in ref_ch) for all trials as numpy array
+            3. do trial alignment and get Fosset containing xy translation for all trials
+            4. compute trial average for F and res for each stimulus condition using Fosset
+            5. append these results into lists
+        6. pack all these lists together into imgdict
+    '''
 
     if verbose:
         t0 = time.time()

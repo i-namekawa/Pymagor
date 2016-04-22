@@ -84,7 +84,8 @@ def get_all_tags(fp):
                     #print key, value
                     meta_data_dict[key] = value
         
-        elif tagkeys == [274, 277, 279]:
+        elif tagkeys in [ [274, 277, 279],  # PIL 1.17 / pillow 2.3.0
+                          [256, 257, 258, 259, 262, 296, 320, 273, 274, 277, 278, 279, 282, 283, 284]]: # pillow 3.2.0
             meta_data_dict['acqsoftware'] = 'MATLAB'
             meta_data_dict['nframes'] = _count_frames(im)
             
@@ -147,9 +148,9 @@ def get_tags(fp):
         img_info['frameRate'] = 0
     
     elif acqsoftware == 'MATLAB':
-        img_info['nch'] = 1
         img_info['zoomFactor'] = 0
         img_info['averaging'] = 0
+        img_info['nch'] = 1
         img_info['recorded_ch'] = ['1','0','0','0']
         img_info['nframes'] = int(Metadata['nframes'])
         img_info['scanAmplitudeX'] = 0
@@ -402,7 +403,7 @@ if __name__ == '__main__':
     #fp = r"testdata\Untitled-1.tif"
     
     # MATLAB
-    #fp = r'testdata\test50to100.tif'
+    fp = r'testdata\test50to100.tif'
     
     ## ScanImage 3.6 z-stack
     # fp = r"testdata\scanimage36\PSF001.tif"
@@ -420,7 +421,7 @@ if __name__ == '__main__':
     ## ScanImage 4B 9 planes x 110 = 990 frames hw=512x512
     # fp = r"R:\Data\itoiori\scanimage\2016\2016-03-11\positive01\IN26tested_008_.tif"
     ## ScanImage 4B 5 planes x 200 = 1000 frames hw=512x512
-    fp = r'R:/Data/itoiori/scanimage/2016/2016-03-22/IN26-pair01-fish04_001_.tif'
+    # fp = r'R:/Data/itoiori/scanimage/2016/2016-03-22/IN26-pair01-fish04_001_.tif'
     ## ScanImage 4B zstack
     # fp = 'R:/Data/itoiori/scanimage/2016/2016-03-11/positive01/IN26tested_025_.tif'
     
@@ -430,8 +431,8 @@ if __name__ == '__main__':
     meta_data_dict = get_all_tags(fp)
     print meta_data_dict['acqsoftware']
     
-    durpre = [1,8]
-    durres = [10,25]
+    durpre = [1,10]
+    durres = [13,20]
     #img = opentif(fp, dtype=np.uint16, skip=[durpre, durres])
     img = opentif(fp, dtype=np.uint16, skip=False, ch=0)
     print img.shape

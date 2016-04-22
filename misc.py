@@ -141,13 +141,13 @@ def average_odormaps(
       by averaging raw frames over frames and across trials and 
       use this common F for all trials.
     
-    tags    : a list containing files from one plane only and already in a desired order.
+    tags    : a list containing files from one plane only and already in a desired order
     Foffsets: a numpy arrary matching to tags
     ch      : channel for multi channel recording
     needF   : Flag to get average F instead of odormap
     ROIpoly_n: a tupple of (list of ROI polygons, list of cell numbers). flag to return dF/F traces instead of image
     raw     : when ROIpoly_n is not False, return raw pixel values instead of dF/F value
-    Fnoise  : a constant to subtract from pixel values for dark/read noise from PMD.
+    Fnoise  : a constant to subtract from pixel values for dark/read noise from PMD
     '''
     
     if len(tags[0])>10:                                     # Pymagor v2.0 or later
