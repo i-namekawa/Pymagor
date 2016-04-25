@@ -53,7 +53,7 @@ def get_all_tags(fp):
                 value = ''.join(value.split('\"'))
                 meta_data_dict[key] = value
 
-        elif 270 in tagkeys: # scanimage or ImageJ tif
+        elif 270 in tagkeys: # scanimage or ImageJ tif or tifffile.TiffWriter
             #tags = im.tag.tagdata[270][1] no longer work. newer Pillow parse differently
             tags = im.tag.tagdata[270]
             
@@ -73,10 +73,19 @@ def get_all_tags(fp):
             elif tags.startswith('state.configName'):
                 meta_data_dict['acqsoftware'] = 'scanimage3.6'
                 sepstr = '\r'
+            elif tags.startswith('{"shape"') and 305 in tagkeys: # tifffile.py?
+                if im.tag.tagdata[305].split('\x00')[0] == 'tifffile.py':
+                    meta_data_dict['acqsoftware'] = 'tifffile.py'
+                    tmp = tags[tags.find('[')+1:tags.find(']')].split(',')
+                    meta_data_dict['nframes'] = int(tmp[0])
+                    return meta_data_dict
+                else: # unknown file type
+                    return _count_frames(im)
             else:
                 meta_data_dict['acqsoftware'] = 'unknown'
+                meta_data_dict['nframes'] = _count_frames(im)
                 sepstr = '\n'
-                
+            
             for tag in tags.split(sepstr):
                 splitted = tag.split('=')
                 if len( splitted ) == 2:
@@ -261,7 +270,17 @@ def get_tags(fp):
             n = int(Metadata['scanimage.SI4.acqNumAveragedFrames '])
             img_info['nframes'] = frames / n * zdim / img_info['nch']
 
+    elif acqsoftware == 'tifffile.py':
         
+        img_info['nch'] = 1
+        img_info['zoomFactor'] = 'NA'
+        img_info['averaging'] = 'NA'
+        img_info['recorded_ch'] = 'NA'
+        img_info['nframes'] = Metadata['nframes']
+        img_info['scanAmplitudeX'] = 'NA'
+        img_info['scanAmplitudeY'] = 'NA'
+        img_info['frameRate'] = 'NA'
+
     else:  # unrecognized file types
         
         print 'unrecognized file types'
@@ -284,43 +303,56 @@ count = 0
 def opentif(fp, 
             dtype=np.uint8, 
             filt=None, 
-            skip=False, 
+            frames2load=False, 
             ch=0, 
-            check8bit=False
+            check8bit=False,
+            nch=None,
+            nframes=None
             ):
     '''
     fp      : file full path strings
+    (optional args)
     dtype   :  np.unit8 or np.uint16 or np.float32
     filt    : PIL filter object.  ex. im.filter(ImageFilter.MedianFilter)
-    skip    : a list of durpre and durres to set frames to read.
+    frames2load : a list of durpre and durres to set frames to read. or numpy array of slice indices
     ch      : channel to read (every n th frame offset by ch, n being total # of channels)
     check8bit : flag to indicate that we want a histogram of pixel values in 8 bit range.
+    nch     : total # of channels in the image file
+    nframes : total # of frames per channel in the image file
     '''
-    img_info = get_tags(fp)
-    if img_info == None:
-        return None
-    nch = img_info['nch']
+    if nch is None or nframes is None:
+        img_info = get_tags(fp)
+        if img_info is None:
+            return None
+        if nframes is None:
+            nframes = img_info['nframes']
+        if nch is None:
+            nch = img_info['nch']
+    
     if ch+1 > nch:
         print 'channel%d not found in %s' % (ch, fp)
-        if check8bit is not False:
+        if check8bit:
             return None, None
         else:
             return None
-    nframes = img_info['nframes']
+    
     im = Image.open(fp)
     w,h = im.size
     
-    if skip:
-        if len(skip) == 2:  # load only pre-stimulus and response periods
-            durpre, durres = skip
+    if frames2load is not False:  # "if frames2load" will result in ValueError.
+        if len(frames2load) == 2:  # load only pre-stimulus and response periods
+            durpre, durres = frames2load
             zsize = np.diff(durpre) + np.diff(durres) + 2
             size = ( h, w, zsize )
             
             fr2load_pre = np.arange(durpre[0], durpre[1]+1) * nch + ch
             fr2load_res = np.arange(durres[0], durres[1]+1) * nch + ch
             rng = np.hstack( (fr2load_pre, fr2load_res) )
+        elif type(frames2load) == np.ndarray: #we can give ready to use numpy indices as wll
+            rng = frames2load
+            size = ( h, w, rng.size )
         else:               # load only the 1st frame during pre-stimulus
-            durpre = skip # unpacking...
+            durpre = frames2load # unpacking...
             size = ( h, w, 1 )
             rng = [(durpre[0]+ch) * nch]
     else:   # load all frames
@@ -363,7 +395,6 @@ def opentif(fp,
                 im.seek(fr)
                 img[:,:,n] = np.array(im.getdata()).reshape(h,w)
     
-
     return img[::-1,:,:] # for wx, openGL cordinate. y=0 is on top
 
 
@@ -403,7 +434,7 @@ if __name__ == '__main__':
     #fp = r"testdata\Untitled-1.tif"
     
     # MATLAB
-    fp = r'testdata\test50to100.tif'
+    # fp = r'testdata\test50to100.tif'
     
     ## ScanImage 3.6 z-stack
     # fp = r"testdata\scanimage36\PSF001.tif"
@@ -425,6 +456,10 @@ if __name__ == '__main__':
     ## ScanImage 4B zstack
     # fp = 'R:/Data/itoiori/scanimage/2016/2016-03-11/positive01/IN26tested_025_.tif'
     
+
+    # toy data by tifffile.TiffWriter.save
+    fp = r'R:/MoonshipTDPS2/projects/namekawa-san/git/Pymagor/testdata/temp.tif'
+
     info = get_tags(fp)
     print info
 
@@ -433,13 +468,13 @@ if __name__ == '__main__':
     
     durpre = [1,10]
     durres = [13,20]
-    #img = opentif(fp, dtype=np.uint16, skip=[durpre, durres])
-    img = opentif(fp, dtype=np.uint16, skip=False, ch=0)
+    #img = opentif(fp, dtype=np.uint16, frames2load=[durpre, durres])
+    img = opentif(fp, dtype=np.uint16, frames2load=False, ch=0)
     print img.shape
     
     import time
     t0 = time.time()
-    a, b = opentif(fp, skip=False, check8bit=True, ch=0)
+    a, b = opentif(fp, frames2load=False, check8bit=True, ch=0)
     print time.time() - t0
     
     print a, b

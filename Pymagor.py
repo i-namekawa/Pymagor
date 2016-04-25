@@ -1933,7 +1933,7 @@ class trial2(wx.Frame):
                 masks.append(mask)
 
         if fp.endswith(('tif','ior')):  # now opentif takes care of ior also
-            img = opentif(fp, dtype=dtype, filt=None, skip=None, ch=self.ch)
+            img = opentif(fp, dtype=dtype, filt=None, ch=self.ch)
 
         if masks:
             dFoFtraces = getdFoFtraces(img, durpre, masks, raw=raw, baseline=self.baseline, Fnoise=Fnoise)
@@ -2437,7 +2437,7 @@ class trial2(wx.Frame):
                             jobID=self.jobID    )
 
     def gethist(self, jobID, abortEvent, fp):
-        a, b = opentif(fp, skip=False, check8bit=abortEvent)
+        a, b = opentif(fp, frames2load=False, check8bit=abortEvent)
         return fp, a, b
 
     def _resultConsumer(self, delayedResult):
@@ -4773,7 +4773,7 @@ def LPMresmap(fp, F, rng, dtype, nch, offsets=None, Fnoise=0):
                 ).astype(np.float32)  # slower but closer to Imagor3 result
 
 
-def lowpeakmemload(fp, dtype, filt=None, skip=False, Fnoise=0):
+def lowpeakmemload(fp, dtype, filt=None, frames2load=False, Fnoise=0):
     '''
     load raw frames, average image and gaussian filtered image
     in a memory friendly manner
@@ -4804,8 +4804,8 @@ def lowpeakmemload(fp, dtype, filt=None, skip=False, Fnoise=0):
     F = LPMavg(fp, _durpre, dtype, nch, offsets, ch2load=ch) - Fnoise
     F[F==0] = F[F.nonzero()].min() # avoid zero division when creating movie
 
-    if skip:                    # howmanyframe = 1, 2
-        raw = opentif(fp, dtype, filt, skip=skip, ch=ch) - Fnoise
+    if frames2load:                    # howmanyframe = 1, 2
+        raw = opentif(fp, dtype, filt, frames2load=frames2load, ch=ch) - Fnoise
         if nframes<100:
             rng = [0, nframes-1]
         else:
@@ -4817,7 +4817,7 @@ def lowpeakmemload(fp, dtype, filt=None, skip=False, Fnoise=0):
         DFoFmovie = None
 
     else:                       # howmanyframe = 0
-        raw = opentif(fp, dtype, filt, ch=ch) - Fnoise
+        raw = opentif(fp, dtype=dtype, filt=filt, ch=ch) - Fnoise
 
         if offsets is not None:
             if offsets.any():
@@ -4885,16 +4885,16 @@ def LoadImage(group, data_path, howmanyframe, dtype, parent=None, Fnoise=0):
         _durpre, _durres = checkdurs(fp, parent=parent)
 
         if howmanyframe==0:     # I need all frames!
-            skip = False
+            frames2load = False
         elif howmanyframe==1:   # only durs
-            skip = [_durpre, _durres]
+            frames2load = [_durpre, _durres]
         elif howmanyframe==2:   # the first frame of durpre
-            skip = [_durpre[0]]
+            frames2load = [_durpre[0]]
 
         print 'Loading ', fp
         
         nframes, raw, F, F_ref, resmap, anatomy, DFoFmovie = \
-            lowpeakmemload(fp, dtype, skip=skip, Fnoise=Fnoise)
+            lowpeakmemload(fp, dtype, frames2load=frames2load, Fnoise=Fnoise)
         if raw is None:
             return None, None, None, None, None, None
 
@@ -5001,10 +5001,7 @@ def pack(data_path, tags, howmanyframe, need_AvgTr, need_MaxPr, parent, reftr=No
         # pre-sort concentration series of the same odor
         eachplane = [ items for items in tags if z == items[1] ]
         trials =    [dd[3] for dd in eachplane]
-        odors =     [dd[2] for dd in eachplane]
-        odors =     [int(re.search('10(\-)[0-9]+M', odor).group(0)[2:-1])
-                    if re.search('10(\-)[0-9]+M', odor) is not None else 100*n
-                    for n,odor in enumerate(odors)]
+        odors =     [ dd[2].lower() for dd in eachplane ] # we want case insensitive sort                    
         # then lexsort for odors first (1st factor) and trials (2nd factor)
         eachplane = [ eachplane[ind] for ind in np.lexsort((trials, odors)) ]
 

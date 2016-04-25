@@ -69,8 +69,10 @@ def Shift(ImgP, Foffset):
         
         for y,x,c,ind in Foffset: # [1:] # yoff, xoff, correlation, ind
             #print 'offset (y=%d, x=%d), corr=%f, index=%d' % (y,x,c,ind)
-            ImgP[:,:,ind] = np.roll(ImgP[:,:,ind], int(-y), axis=0)
-            ImgP[:,:,ind] = np.roll(ImgP[:,:,ind], int(-x), axis=1)
+            if y: 
+                ImgP[:,:,ind] = np.roll(ImgP[:,:,ind], int(-y), axis=0)
+            if x:
+                ImgP[:,:,ind] = np.roll(ImgP[:,:,ind], int(-x), axis=1)
         
         # 0 padding the margin
         ImgPshited[maxShift:-maxShift,maxShift:-maxShift,:] = ImgP[maxShift:-maxShift,maxShift:-maxShift,:]
@@ -187,7 +189,7 @@ def average_odormaps(
         for n, ((fname, fpath), (yoff, xoff, r, nn)) in enumerate(zip(file_path, Foffsets.tolist())): 
             fp = os.path.join(fpath, fname)
             # by definition 'anatomy view' requires averaging all the frames... this should be cached in file
-            img = opentif(fp, ch=ch, dtype=dtype, filt=None, skip=False) - Fnoise
+            img = opentif(fp, ch=ch, dtype=dtype, filt=None, frames2load=False) - Fnoise
             
             if Autoalign:
                 within_offsets = get_offset_within_trial(fp, ref_ch, durpre, margin, SpatMeds)
