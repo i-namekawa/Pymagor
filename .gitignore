@@ -73,3 +73,6 @@ testdata/test50to100_shift x5 y-9.tif
 testdata/ScanImageBTestFiles/beads_005_.tif
 F 20 - 65
 testdata/MicroManager/ThomasHeartMarkerFish_1/ThomasHeartMarkerFish_1_MMStack.ome.tif
+misc.py
+newpack.py
+newpack.py

@@ -24,17 +24,26 @@
 ##  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 ##  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-# done
+# major changes
+# major bug: within trial alignment is not reflected in dF/F trace for indivisual file
+# major bug: trial alignment offset not reflected to average response
+# refactor the MESS around image file loading (pack function and its many friends)
+# abort btn was not working. fixed.
+
+# minor changes
 # remove dependency on win32process, yapsy will stay
 # check if the platform is windows when creating avi with ffmpeg.exe.
 # update avi creation code for PIL/pillow API changes
+# in PDF export a new page with a large anatomy image with ROIs overlaid
+# put during stim period and Fnoise into offset file.
+# use ini file to store colormap in use
 
 # TODO: MATLAB generated color tiff support is broken but maybe no one needs this. Let's drop it
-# TODO: refactor the MESS (pack function and friends): stop calling checkdurs so many times, loading file for 2nd time in average_odormaps
 
 # STANDARD libraries
-from __future__ import with_statement
+from __future__ import with_statement, division
 from pprint import pprint
+import cPickle as pickle
 import ConfigParser, csv, getpass, itertools, os, platform
 import re, subprocess, sys, time, webbrowser
 myOS = platform.system()
@@ -45,7 +54,9 @@ from PIL import ImageDraw
 from PIL import TiffImagePlugin  # for py2exe
 
 import numpy as np
-import scipy.ndimage
+import scipy
+
+import scipy.ndimage as ndimage
 import scipy.io as sio
 from scipy.sparse.csgraph import _validation  ## for py2exe
 if int(scipy.__version__.split('.')[1])>11:
@@ -57,7 +68,7 @@ if myOS in ('Windows', 'Linux'): # until sip can be installed on OS X Darwin.
 
 import matplotlib.cm as cm
 import matplotlib.pyplot as plt
-
+from matplotlib.path import Path
 from matplotlib.patches import Polygon
 from matplotlib.backends.backend_pdf import PdfPages
 from matplotlib.font_manager import FontProperties
@@ -82,20 +93,20 @@ import wx.py
 from yapsy.PluginManager import PluginManager
 
 
-# User libraries (sub-package of Pymagor2)
+# Pymagor2 user libraries
 import corr, ROImanager
 from ROImanager import z_prefix
 from ROI import ROIv3 as ROI
-from opentif import *
-from misc import *
-from create_pymagorsheet_v2 import *
+from opentif import opentif, get_tags
+from create_pymagorsheet_v2 import create_csv
 
 # Global variables
 release_version = '2.7.3'
 with open('resources/version.info', 'r') as f:
     __version__ = f.readline().splitlines()[0]
 
-CREATE_NO_WINDOW = 134217728 # used in windows only (taken from win32process.CREATE_NO_WINDOW)
+# used in windows only (taken from win32process.CREATE_NO_WINDOW)
+CREATE_NO_WINDOW = 134217728 
 
 # hardcoding the difference between xp and win7
 # because wx2.8 does not support vista and above yet
@@ -140,6 +151,8 @@ if results: ## if Pymagor.ini exists, use it for user params
     # ini file from old ver will not have customROIcategory
     if 'customROIcategory' not in dir():
         customROIcategory = []
+    if 'ColorMapName' not in dir():
+        ColorMapName = 'clut2b (custom)'
 else:
     ## default parameters that are normally defined in Pymagor.ini
     ini_log = 'No Pymagor.ini found.'
@@ -149,6 +162,8 @@ else:
     cmin = -cmax/4.0
     margin = 9
     SpatMed, SpatMed2, fastLoad = True, True, False
+    
+    ColorMapName = 'clut2b (custom)'
 
     min_fontsize = 7
     pickle_stacked = False
@@ -190,6 +205,36 @@ CntxPlugin = {}  # plugin objects dictionary for context menu
 
 img_keys = ['unshifted frames', 'dFoFfil', 'F', 'dFoFavg', 'anatomy',
             'avg_F', 'avg_odormaps', 'avg projection', 'max projection']
+
+kernel = \
+   [[0.0075, 0.0211, 0.0296, 0.0211, 0.0075],
+    [0.0211, 0.0588, 0.0828, 0.0588, 0.0211],
+    [0.0296, 0.0828, 0.1166, 0.0828, 0.0296],
+    [0.0211, 0.0588, 0.0828, 0.0588, 0.0211],
+    [0.0075, 0.0211, 0.0296, 0.0211, 0.0075]]
+
+# our custom jet like colormap "clut2b" (color look up table 2b, 8-bit) 
+# inherited from "Imagor3" written by Rainer Friedrich.
+# near the max value it replaces darker red in jet with brighter, whitish red.
+# 
+# this buffer format works only with Python2
+clut2b_buffer = "\x00\x01\r\x00\x02\x14\x00\x03\x1b\x00\x03!\x00\x03'\x00\x04-\x00\x053\x00\x069\x00\t?\x00\tE\x00\nK\x00\x0cQ\x00\x0cW\x00\r]\x00\rc\x00\x0ei\x00\x0fo\x00\x0fu\x00\x12{\x00\x15\x81\x00\x18\x87\x00\x1a\x8d\x00\x1d\x93\x00 \x99\x00#\x9f\x00&\xa5\x00)\xab\x00,\xb1\x00/\xb7\x002\xbd\x005\xc2\x007\xc8\x009\xce\x00;\xd4\x00=\xda\x00?\xe0\x00@\xe5\x00A\xea\x00B\xef\x00C\xf5\x00D\xfb\x00E\xff\x00F\xff\x00G\xff\x00H\xff\x00I\xff\x00J\xff\x00K\xff\x00L\xff\x00M\xff\x00N\xff\x00O\xff\x00P\xff\x00T\xff\x00W\xff\x00[\xff\x00^\xff\x00b\xff\x00e\xff\x00i\xff\x00l\xff\x00p\xff\x00s\xff\x00w\xff\x00z\xff\x00~\xff\x00\x81\xff\x00\x85\xff\x00\x88\xff\x00\x8c\xff\x00\x8f\xff\x00\x93\xf7\x00\x96\xf0\x00\x9a\xe8\x00\x9d\xe0\x00\xa1\xd8\x00\xa4\xd1\x00\xa8\xc9\x00\xab\xc1\x00\xaf\xb9\x00\xb2\xb2\x00\xb6\xaa\x00\xb9\xa2\x00\xbd\x9b\x00\xc0\x93\x00\xc4\x8b\x00\xc7\x83\x00\xcb|\x00\xcet\x00\xd2l\x00\xd5d\x00\xd9]\x00\xdcU\x00\xe0M\x00\xe3F\x00\xe7>\x07\xea6\r\xee.\x14\xf1'\x1a\xf5\x1f!\xf8\x17'\xfc\x0f.\xff\x084\xff\x00;\xff\x00A\xff\x00H\xff\x00N\xff\x00U\xff\x00\\\xff\x00b\xff\x00i\xff\x00o\xff\x00v\xff\x00|\xff\x00\x83\xff\x00\x89\xff\x00\x90\xff\x00\x96\xff\x00\x9d\xff\x00\xa3\xff\x00\xaa\xff\x00\xb1\xff\x00\xb7\xff\x00\xbe\xff\x00\xc4\xff\x00\xcb\xff\x00\xd1\xff\x00\xd8\xff\x00\xde\xff\x00\xe5\xff\x00\xeb\xff\x00\xf2\xff\x00\xf8\xff\x00\xfe\xff\x00\xff\xff\x00\xff\xff\x00\xff\xff\x00\xff\xff\x00\xff\xff\x00\xff\xff\x00\xff\xff\x00\xff\xff\x00\xff\xff\x00\xff\xff\x00\xff\xff\x00\xff\xff\x00\xff\xff\x00\xff\xff\x00\xff\xff\x00\xff\xff\x00\xff\xff\x00\xff\xff\x00\xff\xff\x00\xff\xff\x00\xff\xff\x00\xff\xff\x00\xff\xff\x00\xff\xfe\x00\xff\xfa\x00\xff\xf8\x00\xff\xf4\x00\xff\xf0\x00\xff\xed\x00\xff\xe9\x00\xff\xe6\x00\xff\xe2\x00\xff\xde\x00\xff\xdb\x00\xff\xd7\x00\xff\xd3\x00\xff\xd0\x00\xff\xcc\x00\xff\xc8\x00\xff\xc5\x00\xff\xc1\x00\xff\xbd\x00\xff\xba\x00\xff\xb6\x00\xff\xb2\x00\xff\xaf\x00\xff\xab\x00\xff\xa8\x00\xff\xa4\x00\xff\xa0\x00\xff\x9d\x00\xff\x99\x00\xff\x95\x00\xff\x92\x00\xff\x8e\x00\xff\x8a\x00\xff\x87\x00\xff\x83\x00\xff\x80\x00\xff|\x00\xffx\x00\xffu\x00\xffq\x00\xffm\x00\xffj\x00\xfff\x00\xffb\x00\xff_\x00\xff[\x00\xffW\x00\xffT\x00\xffP\x00\xffL\x00\xffI\x00\xffE\x00\xffB\x00\xfd>\x00\xff:\x00\xff7\x00\xff3\x00\xff/\x00\xff,\x00\xff(\x00\xff$\x00\xff!\x00\xff\x1d\x00\xff\x1a\x00\xff\x16\x00\xff\x12\x00\xff\x0f\x00\xff\x0b\x00\xff\x07\x00\xff\x04\x04\xff\x00\x07\xff\x00\x0b\xff\x00\x0f\xff\x00\x13\xff\x00\x16\xff\x00\x1a\xff\x00\x1e\xff\x00!\xff\x00%\xff\x00)\xff\x00,\xff\x000\xff\x004\xff\x008\xff\x00;\xff\x00?\xff\x00C\xff\x00F\xff\x00J\xff\x00N\xff\x00Q\xff\x00U\xff\x00Y\xff\x00]\xff\x00`\xff\x00d\xff\x00\xff\xff\xff\xff"
+clut2b = np.fromstring(clut2b_buffer, dtype=np.uint8).reshape((256,3))
+cmap = clut2b # default is copied to global var cmap
+
+# parula is MATLAB's new default colormap. data converted from https://github.com/BIDS/colormap/blob/master/parula.py
+parula_buffer = '5*\x865+\x8a5-\x8d5.\x9050\x9361\x9663\x9964\x9c66\x9f57\xa259\xa55;\xa95<\xac4>\xaf3?\xb22A\xb52C\xb90D\xbc/F\xbf-H\xc2+J\xc5)K\xc9&N\xcc#P\xcf R\xd2\x1cT\xd5\x18V\xd7\x14X\xda\x10[\xdc\r\\\xdd\n^\xde\x07`\xdf\x04b\xe0\x02c\xe0\x02d\xe0\x02f\xe1\x01g\xe1\x01h\xe0\x02i\xe0\x03k\xe0\x03l\xe0\x04m\xdf\x05n\xdf\x06o\xde\x07p\xde\x08q\xde\tr\xdd\x0bs\xdd\x0ct\xdc\ru\xdc\rv\xdb\x0ew\xdb\x0fx\xda\x10y\xd9\x10z\xd9\x11{\xd8\x12{\xd8\x12|\xd7\x12}\xd7\x13~\xd6\x13\x7f\xd6\x13\x80\xd5\x13\x81\xd5\x14\x82\xd4\x14\x83\xd4\x14\x84\xd3\x13\x85\xd3\x13\x87\xd3\x13\x88\xd2\x12\x89\xd2\x12\x8a\xd2\x11\x8b\xd2\x10\x8c\xd2\x10\x8e\xd2\x0f\x8f\xd2\x0e\x90\xd1\r\x92\xd1\x0c\x93\xd1\x0b\x94\xd1\n\x95\xd1\t\x96\xd1\x08\x98\xd1\x08\x99\xd0\x07\x9a\xd0\x07\x9b\xcf\x06\x9c\xcf\x06\x9d\xce\x06\x9e\xce\x06\x9f\xcd\x06\xa0\xcc\x06\xa1\xcc\x05\xa1\xcb\x05\xa2\xca\x05\xa3\xc9\x05\xa4\xc8\x05\xa5\xc8\x05\xa5\xc7\x05\xa6\xc6\x06\xa7\xc5\x06\xa7\xc4\x06\xa8\xc3\x06\xa9\xc2\x07\xa9\xc1\x08\xaa\xc0\x08\xab\xbe\t\xab\xbd\n\xac\xbc\x0c\xac\xbb\r\xad\xba\x0e\xae\xb9\x10\xae\xb8\x11\xaf\xb6\x13\xaf\xb5\x14\xb0\xb4\x16\xb1\xb3\x18\xb1\xb1\x1a\xb2\xb0\x1c\xb2\xaf\x1e\xb3\xae \xb3\xac"\xb4\xab$\xb4\xaa&\xb5\xa8(\xb5\xa7*\xb6\xa5,\xb6\xa4/\xb7\xa31\xb7\xa13\xb8\xa06\xb8\x9e8\xb9\x9d;\xb9\x9b=\xb9\x9a@\xba\x98C\xba\x97E\xbb\x95H\xbb\x94K\xbb\x92N\xbc\x91Q\xbc\x8fS\xbc\x8eV\xbd\x8cY\xbd\x8b\\\xbd\x89_\xbd\x88b\xbe\x86e\xbe\x85h\xbe\x84k\xbe\x82n\xbe\x81q\xbe\x80t\xbe~w\xbe}y\xbe||\xbf{\x7f\xbfz\x82\xbfx\x84\xbfw\x87\xbfv\x8a\xbeu\x8c\xbet\x8f\xbes\x91\xber\x94\xbeq\x96\xbep\x99\xbeo\x9b\xben\x9d\xbem\xa0\xbel\xa2\xbek\xa5\xbej\xa7\xbdi\xa9\xbdh\xab\xbdh\xae\xbdg\xb0\xbdf\xb2\xbde\xb4\xbdd\xb6\xbdc\xb9\xbcb\xbb\xbca\xbd\xbca\xbf\xbc`\xc1\xbc_\xc3\xbb^\xc5\xbb]\xc7\xbb\\\xca\xbb[\xcc\xbb[\xce\xbbZ\xd0\xbaY\xd2\xbaX\xd4\xbaW\xd6\xbaV\xd8\xbaU\xda\xbaU\xdc\xb9T\xde\xb9S\xe0\xb9R\xe2\xb9Q\xe4\xb9P\xe6\xb9O\xe8\xb9N\xea\xb9M\xec\xb9L\xee\xb9K\xf0\xb9J\xf2\xb9H\xf3\xb9G\xf5\xbaF\xf7\xbaD\xf8\xbaC\xfa\xbbA\xfb\xbc?\xfc\xbd>\xfd\xbe<\xfd\xbf;\xfe\xc19\xfe\xc28\xfe\xc36\xfe\xc55\xfe\xc64\xfd\xc72\xfd\xc81\xfd\xca0\xfc\xcb/\xfc\xcc.\xfb\xce-\xfb\xcf,\xfa\xd0+\xfa\xd1*\xf9\xd3)\xf8\xd4(\xf8\xd5\'\xf7\xd7&\xf7\xd8%\xf6\xda$\xf6\xdb#\xf5\xdc"\xf5\xde!\xf5\xdf \xf4\xe1\x1e\xf4\xe2\x1d\xf4\xe4\x1c\xf4\xe6\x1b\xf4\xe7\x1a\xf4\xe9\x19\xf4\xeb\x18\xf5\xed\x16\xf5\xee\x15\xf5\xf0\x14\xf6\xf2\x13\xf7\xf4\x11\xf7\xf6\x10\xf8\xf8\x0f\xf8\xfa\r'
+
+if hasattr(cm, 'viridis'): # matplotlib 1.5 and above
+    colormapOptions = {}
+    colormapOptions['clut2b (custom)'] = clut2b
+    colormapOptions['parula (MATLAB)'] = np.fromstring(parula_buffer, dtype=np.uint8).reshape((256,3))
+    colormapOptions['jet (MATLAB)'] = (cm.jet(range(256))[:,:3]* 255).astype(np.uint8)
+    colormapOptions['magma (matplotlib)'] = (cm.magma(range(256))[:,:3]* 255).astype(np.uint8)
+    colormapOptions['inferno (matplotlib)'] = (cm.inferno(range(256))[:,:3]* 255).astype(np.uint8)
+    colormapOptions['cubehelix (matplotlib)'] = (cm.cubehelix(range(256))[:,:3]* 255).astype(np.uint8)
+    colormapOptions['plasma (matplotlib)'] = (cm.plasma(range(256))[:,:3]* 255).astype(np.uint8)
+    colormapOptions['viridis (matplotlib)'] = (cm.viridis(range(256))[:,:3]* 255).astype(np.uint8)
 
 # load odor and plane persistency file
 PlaneList = []
@@ -239,7 +284,6 @@ class matDrop(wx.FileDropTarget):
         self.parent = parent
 
     def OnDropFiles(self, x, y, filenames):
-
         filenames.sort()
         for fp in filenames:
             self.parent.loadROI(fp)
@@ -257,7 +301,6 @@ class BaseListCtrl(wx.ListCtrl,
                         listmix.ListCtrlAutoWidthMixin):
     def __init__(self, parent, columns, name='ListCtrl',
                 style=wx.LC_EDIT_LABELS|wx.LC_REPORT):
-
         wx.ListCtrl.__init__(self, parent, name=name, style=style)
         listmix.ListCtrlAutoWidthMixin.__init__(self)
 
@@ -366,7 +409,8 @@ class trial2(wx.Frame):
         # prepare img data and buffer
         if type(imgdict) == dict:
             self.img = imgdict['unshifted frames']
-            print 'raw image size (MB): ', self.img.nbytes / 1024 / 1024
+            if verbose:
+                print 'raw image size (MB): ', self.img.nbytes / 1024 / 1024
             self.imgdict = imgdict
         else:
             self.img = imgdict[::-1,:,:]
@@ -535,7 +579,7 @@ class trial2(wx.Frame):
         saving_bmp = wx.Bitmap(r'resources/Tango/saving.ico', wx.BITMAP_TYPE_ICO)
         self.reportbtn = wx.BitmapButton(self.btnbar, -1, report_bmp, style = wx.NO_BORDER)
         self.reportbtn.SetBitmapSelected( saving_bmp )
-        self.reportbtn.SetToolTip(wx.ToolTip('Make a PDF Report and export as matfile'))
+        self.reportbtn.SetToolTip(wx.ToolTip('Make a PDF Report and export as mat/npz file'))
 
         self.ID_jump2anat = wx.NewId()
         self.ID_jump2avgmap = wx.NewId()
@@ -839,17 +883,18 @@ class trial2(wx.Frame):
             title = '%s %s' % (z, odorname)
             if wantfp_offset:
                 eachplane = [ tag for tag in self.tag if z == tag[1] and tag[2] == odorname]
-                offsets = [ offset for tag,offset in zip(self.tag, self.imgdict['Foffset']) if z == tag[1] ]
+                offsets = [ offset for tag,offset in zip(self.tag, self.imgdict['Foffset']) if z == tag[1] and tag[2] == odorname]
                 return eachplane, offsets
         else: # [0] raw or [1] dF/F filtered
             zsize = self.z / len(self.tag)
-            _tag = self.tag[self.curframe / zsize]
+            _ind = int(self.curframe / zsize)
+            _tag = self.tag[_ind]
             data_path = _tag[-1]
 
             z = _tag[1]
             fname = _tag[0]
             title = z + ' ' + fname
-            Foffset = self.imgdict['Foffset'][self.curframe / zsize, 0:2]
+            Foffset = self.imgdict['Foffset'][_ind, 0:2]
 
         if wantz:
             return z
@@ -875,7 +920,7 @@ class trial2(wx.Frame):
             self.checkhist(fp)
 
         img = self.img[:,:,self.curframe]
-        txt = 'Min and Max pixel values in image : %d, %d' % (img.min(), img.max() )
+        txt = 'Min and Max pixel values in image : %d, %d' % (img.min(), img.max())
         self.ManScaling.SetToolTip( wx.ToolTip(txt) )
 
         title = img_keys[self.TVch]+': ' + title
@@ -1533,10 +1578,10 @@ class trial2(wx.Frame):
             data_path = eachplane[0][-1]
         else: # [0] raw or [1] dF/F filtered
             zsize = self.z / len(self.tag)
-            _tag = self.tag[self.curframe / zsize]
+            _tag = self.tag[int(self.curframe / zsize)]
             data_path = _tag[-1]
 
-        webbrowser.open(os.path.dirname(data_path))
+        webbrowser.open(data_path)
 
     def OnCtxAutoPSF(self, event):
 
@@ -1794,11 +1839,11 @@ class trial2(wx.Frame):
         fppdf = os.path.join(data_path,
                         os.path.basename(data_path)+
                         time.strftime('.mat'))
-
+        wildcard = 'ROI data files (*.mat,*.npz)|*.mat;*_ROIs.npz'
         if _id == self.ID_ROIimport:
             dlg = wx.FileDialog(
                 self, message='Load ...', defaultDir=data_path,
-                defaultFile=fppdf, wildcard='All files (*.mat)|*.mat',
+                defaultFile=fppdf, wildcard=wildcard,
                 style=wx.FD_OPEN )
             if dlg.ShowModal() == wx.ID_OK:
                 fp = dlg.GetPath()
@@ -1808,7 +1853,7 @@ class trial2(wx.Frame):
         elif _id == self.ID_ROIexport:
             dlg = wx.FileDialog(
                 self, message="Save file as ...", defaultDir=data_path,
-                defaultFile=fppdf, wildcard='All files (*.mat)|*.mat',
+                defaultFile=fppdf, wildcard=wildcard,
                 style=wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT)
             if dlg.ShowModal() == wx.ID_OK:
                 fp = dlg.GetPath()
@@ -1850,42 +1895,53 @@ class trial2(wx.Frame):
 
     def OnQuickPlot(self, event):
 
+        if self.ROI.data == []:
+            print 'no ROIs found.'
+            return
+        
         global ch, ref_ch
         ch_bak, ref_ch_bak = ch, ref_ch
         ch, ref_ch = self.ch, self.ref_ch
 
-        if self.ROI.data == []:
-            print 'no ROIs found.'
-            return
+        self.plotbtn.Enable(False)
+
+        Fnoise = self.parent.ParamsPane.sc_Fnoise.GetValue()
+        raw = (event.GetId() == self.ID_plotraw)
 
         fp, Foffset = self.changetitle(wantfp_offset=True)
-        Fnoise = self.parent.ParamsPane.sc_Fnoise.GetValue()
-
-        self.plotbtn.Enable(False)
-        raw = (event.GetId() == self.ID_plotraw)
         if type(fp) == list and type(Foffset) == list:  # ploting for "avg odormaps"
+            eachplane = fp
             ROIfound, ROIpolys = [], []
             z = self.changetitle(wantz=True)
             for n,zz in enumerate(self.ROI.z):
                 if zz == z:
                     ROIfound.append(n+1)
                     ROIpolys.append(self.ROI.data[n])
-            tags = fp
-            durs = (durpre, durres)
-            data_path = self.imgdict['data_path']
             Foffset = np.array(Foffset)
             Foffset[:,0] = -Foffset[:,0] # flix y-axis for shift function
-            dFoF, odornames = average_odormaps(data_path,
-                                                tags,
-                                                Foffset,
-                                                Autoalign,
-                                                durs,
-                                                margin,
-                                                (SpatMed, SpatMed2),
-                                                ch=ch,
-                                                ROIpoly_n=(ROIpolys, ROIfound),
-                                                raw=raw,
-                                                Fnoise=Fnoise)
+
+            dFoF = ComputeThisPlane(
+                                    data_path=self.imgdict['data_path'], 
+                                    tags=eachplane, 
+                                    # most are dummy when ROIpoly_n is provided
+                                    howmanyframe=0,
+                                    need_AvgTr=False, 
+                                    need_MaxPr=False,
+                                    anatomy_method=False,
+                                    Fnoise=Fnoise, # !important
+                                    fastLoad=False,
+                                    verbose=verbose, # !important
+                                    durpre=durpre, # !important
+                                    durres=durres, # !important
+                                    ch=ch,         # !important
+                                    ref_ch=ref_ch, 
+                                    reftr=None,
+                                    margin=margin,
+                                    # these 3 ask for dF/F or raw traces for ROIs
+                                    ROIpoly_n=(ROIpolys, ROIfound),
+                                    Foffsets=Foffset,
+                                    wantsraw=raw )
+
         else:
             dFoF, ROIfound = self.getdFoF(fp, dtype=np.uint16, offset=Foffset, raw=raw, Fnoise=Fnoise)
 
@@ -1904,7 +1960,6 @@ class trial2(wx.Frame):
         plt.tight_layout()
         figure.show()
 
-        self.plotbtn.Enable(True)
 
         if verbose:
             if npz: # numpy friendly output
@@ -1914,11 +1969,13 @@ class trial2(wx.Frame):
 
         ch, ref_ch = ch_bak, ref_ch_bak
 
+        self.plotbtn.Enable(True)
 
     def getdFoF(self, fp, dtype=np.uint16, offset=None, z=False, raw=False, Fnoise=0):
 
         if z is False:
             z = self.changetitle(wantz=True) # get current plane
+        
 
         masks = []
         ROIfound = []
@@ -1934,7 +1991,15 @@ class trial2(wx.Frame):
 
         if fp.endswith(('tif','ior')):  # now opentif takes care of ior also
             img = opentif(fp, dtype=dtype, filt=None, ch=self.ch)
-
+            if Autoalign:
+                data_path = self.imgdict['data_path']
+                fname = os.path.basename(fp)
+                withinTrOffsets = get_offset_within_trial_img(
+                    img, data_path, fname, durpre, margin, (SpatMed, SpatMed2), Fnoise)
+                img = Shift(img.copy(), withinTrOffsets)
+        else:
+            return None, None
+        
         if masks:
             dFoFtraces = getdFoFtraces(img, durpre, masks, raw=raw, baseline=self.baseline, Fnoise=Fnoise)
             return dFoFtraces, ROIfound
@@ -1969,7 +2034,7 @@ class trial2(wx.Frame):
 
         if dlg.ShowModal() == wx.ID_OK:
 
-            print 'Saving a PDF summary and data as mat files...'
+            print 'Saving a PDF summary and data as mat/npz files...'
             fname = dlg.GetPath()
             if not fname.endswith('pdf'):
                 fname[:-3] = 'pdf'
@@ -1978,6 +2043,17 @@ class trial2(wx.Frame):
             self.savemat(fname, Pooled)
 
         dlg.Destroy()
+        
+        dlg = wx.MessageDialog(None, 'Exported successfully. Close plots?', style=wx.YES_NO)
+        if dlg.ShowModal() == wx.ID_YES:
+            self.Parent.OnCloseAll(None)
+        dlg.Destroy()
+
+        # generating PDF means the user like the current parameters. Let's update durpre, durres, Fnoise 
+        # settings stored in offset file, by calling this with None to img arg
+        Fnoise = self.parent.ParamsPane.sc_Fnoise.GetValue()
+        print Fnoise
+        get_offset_within_trial_img(None, data_path, 'dummy', durpre, margin, (SpatMed, SpatMed2), Fnoise)
 
 
     def PDF(self, fname, data_path):
@@ -1989,6 +2065,9 @@ class trial2(wx.Frame):
         ncol = np.ceil(np.sqrt(nfiles))
         nrow = np.ceil(nfiles/ncol)
         Fnoise = self.parent.ParamsPane.sc_Fnoise.GetValue()
+        _figsize = [9.9,7] # A4 paper aspect ratio of sqrt(2)
+        colors = ('b', 'g', 'r', 'c', 'm', 'y')
+        
 
         def gethilo(frame):
             if self.ManScaling.IsChecked():
@@ -2016,14 +2095,45 @@ class trial2(wx.Frame):
                 _orientation = 'horizontal'
             else:
                 _orientation = 'vertical'
-            cbar = figure.colorbar(mappable, ticks=ticks, orientation=_orientation, 
-                                    fraction=0.049, pad=0.01)
+            cbar = figure.colorbar(mappable, ticks=ticks, 
+                    orientation=_orientation, fraction=0.049, pad=0.02)
             cbar.ax.set_xticklabels(clabel)
             cbar.ax.tick_params(labelsize=min_fontsize)
             cbar.outline.set_visible(False)
 
+        # Last but one to show ROIs for each plane on large anatomy canvas
+        seen = set() # this way we can preserve the original order which np.unique will destroy 
+        uniquePlanes = [x for x in [t[1] for t in self.tag] if x not in seen and not seen.add(x)]
+
+        for z in uniquePlanes:
+            # just pick the first matching plane tag
+            _ind = [n for n,t in enumerate(self.tag) if t[1] == z][0]
+            
+            ROIdistribution = plt.figure(figsize=_figsize)
+            axROIdst = ROIdistribution.add_subplot(111)
+            frame = self.imgdict['anatomy'][::-1,:,_ind]
+            frame[frame==0] = frame[frame.nonzero()].min()
+            Hi, Lo = gethilo(frame)
+            frame = self.manualscale(frame, Hi, Lo)
+
+            title = 'ROI distribution %s' % fname
+            myimshow(ROIdistribution, axROIdst, frame, title)
+            fontsize = int(min_fontsize+(30-nfiles)/30)-(len(title)>25)
+            for ind2, roi in enumerate(self.ROI.data):
+                color = colors[np.mod(ind2,6)]
+                if self.ROI.z[ind2] == z:
+                    roi = [(x-0.5,y-0.5) for x,y in roi] # -0.5 seems needed for the difference between vector and image
+                    axROIdst.add_patch(Polygon(roi, edgecolor=color, closed=True, fill=False))
+                    x, y = np.median(np.array(roi), axis=0)
+                    axROIdst.text(x*1.15, y, str(ind2+1), color=color, fontsize=fontsize)
+            plt.tight_layout()
+            ROIdistribution.canvas.draw()
+            ROIdistribution.savefig(pp, format='pdf')
+            if self.parent.export_needplotting.IsChecked():
+                ROIdistribution.show()
+
         # prepare collage which comes after pages for individual trials
-        collage = plt.figure(figsize=[6,4])
+        collage = plt.figure(figsize=_figsize)
         collage.suptitle('Response maps')
 
         dFoFtracesPool = []
@@ -2045,7 +2155,7 @@ class trial2(wx.Frame):
             rawtraces, ROIfound = self.getdFoF(fp, np.uint16, offset=Foffset, z=z, raw=True, Fnoise=Fnoise)
             title = ', '.join(tag[1:3])[:21] + ', ' + tag[3]
 
-            eachtrial = plt.figure(figsize=[6,4])
+            eachtrial = plt.figure(figsize=_figsize)
             eachtrial.suptitle(title)
 
             subplot1 = eachtrial.add_subplot(221)
@@ -2059,19 +2169,19 @@ class trial2(wx.Frame):
             bmp = gray2clut2b(self.imgdict['dFoFavg'][::-1,:,ind].copy(), cmin, cmax)
             myimshow(eachtrial, subplot2, bmp, os.path.basename(fp))
 
-            fontsize = int(min_fontsize+(30-nfiles)/30)-(len(title)>25)
+            
             found_ROIs = []
-
-            colors = ('b', 'g', 'r', 'c', 'm', 'y')
+            fontsize = int(min_fontsize+(30-nfiles)/30)-(len(title)>25)
+            
             for ind2, roi in enumerate(self.ROI.data):
                 color = colors[np.mod(ind2,6)]
                 if self.ROI.z[ind2] == self.tag[ind][1]:
                     found_ROIs.append(ind2+1)
-                    roi = [(x,y) for x,y in roi]
+                    roi = [(x-0.5,y-0.5) for x,y in roi]
                     subplot1.add_patch(Polygon(roi, edgecolor=color, closed=True, fill=False))
                     subplot2.add_patch(Polygon(roi, edgecolor=color, closed=True, fill=False))
                     x, y = np.median(np.array(roi), axis=0)
-                    subplot1.text(x*1.15+self.w, y, str(ind2+1), color=color, fontsize=fontsize)
+                    # subplot1.text(x*1.15+self.w, y, str(ind2+1), color=color, fontsize=fontsize)
 
             dFoFtracesPool.append([dFoFtraces, z, found_ROIs])
             rawtracesPool.append([rawtraces, z, found_ROIs])
@@ -2108,10 +2218,10 @@ class trial2(wx.Frame):
         ## Last two pages   summary of F and dF/F avg fil
         # average across trials for each odor
 
-        collage_avg = plt.figure(figsize=[6,4])
+        collage_avg = plt.figure(figsize=_figsize)
         collage_avg.suptitle('Averaged response maps for each plane-stimlus pair')
 
-        collage_F = plt.figure(figsize=[6,4])
+        collage_F = plt.figure(figsize=_figsize)
         collage_F.suptitle('F for each plane-stimulus pair')
 
         Z_Odor = [(t[1],t[2]) for t in self.tag]
@@ -2132,9 +2242,6 @@ class trial2(wx.Frame):
         else:
             if np.all([z.startswith('z') for z,o in Z_Odor]):
                 print 'z prefix found. convert plane names to numbers following z'
-                #planes = np.array(
-                #[float(filter(lambda x: x == '-' or x.isdigit(), z)) for z,o in Z_Odor],
-                #dtype=np.float)
                 try:
                     planes = z_prefix( Z_Odor[:,0] )
                 except:
@@ -2167,29 +2274,48 @@ class trial2(wx.Frame):
 
             ROIpolys = [roi for roi,zz in zip(self.ROI.data, self.ROI.z) if zz == z]
             found_ROIs = [n+1 for n, zz in enumerate(self.ROI.z) if zz == z]
-            F, dFoFmap, odornames = average_odormaps(
-                                        data_path,
-                                        tag,
-                                        Foffset,
-                                        Autoalign,
-                                        durs,
-                                        margin,
-                                        (SpatMed, SpatMed2),
-                                        ch=ch,
-                                        Fnoise=Fnoise)
 
-            avg_traces, odornames = average_odormaps(
-                                        data_path,
-                                        tag,
-                                        Foffset,
-                                        Autoalign,
-                                        durs,
-                                        margin,
-                                        (SpatMed, SpatMed2),
-                                        ch=ch,
-                                        ROIpoly_n=(ROIpolys, found_ROIs),
-                                        Fnoise=Fnoise
-                                        )
+            results = ComputeThisPlane(
+                                    data_path=data_path, 
+                                    tags=tag, 
+                                    howmanyframe=0,
+                                    need_AvgTr=False, 
+                                    need_MaxPr=False,
+                                    anatomy_method=False,
+                                    Fnoise=Fnoise, # !important
+                                    fastLoad=False,
+                                    verbose=verbose, # !important
+                                    durpre=durs[0], # !important
+                                    durres=durs[1], # !important
+                                    ch=ch,         # !important
+                                    ref_ch=ref_ch, 
+                                    reftr=None,
+                                    margin=margin,
+                                    )
+            F, dFoFmap, odornames = results[-3:]  # last 3 contain what we want
+
+            avg_traces = ComputeThisPlane(
+                                    data_path=data_path, 
+                                    tags=tag, 
+                                    # most are dummy when ROIpoly_n is provided
+                                    howmanyframe=0,
+                                    need_AvgTr=False, 
+                                    need_MaxPr=False,
+                                    anatomy_method=False,
+                                    Fnoise=Fnoise, # !important
+                                    fastLoad=False,
+                                    verbose=verbose, # !important
+                                    durpre=durs[0], # !important
+                                    durres=durs[1], # !important
+                                    ch=ch,         # !important
+                                    ref_ch=ref_ch, 
+                                    reftr=None,
+                                    margin=margin,
+                                    # these 3 ask for dF/F or raw traces for ROIs
+                                    ROIpoly_n=(ROIpolys, found_ROIs),
+                                    Foffsets=Foffset,
+                                    wantsraw=False )
+
 
             avgdFoF_acrosstrials.append( dFoFmap )
             avgF_acrosstrials.append( F )
@@ -2219,7 +2345,7 @@ class trial2(wx.Frame):
 
             # avg traces
             if self.parent.export_avgtraces.IsChecked():
-                avg_trace_fig = plt.figure(figsize=[6,4])
+                avg_trace_fig = plt.figure(figsize=_figsize)
                 avg_trace_fig.suptitle(title)
 
                 subplot1 = avg_trace_fig.add_subplot(221)
@@ -2240,6 +2366,7 @@ class trial2(wx.Frame):
                 if self.parent.export_needplotting.IsChecked():
                     #avgtraces.Show(True)
                     avg_trace_fig.show()
+
 
         txt='Pymagor v%s (rev %s)\ndurpre = [%d, %d], durres = [%d, %d]\nBackground noise offset= %d;margin ' % (release_version,__version__, durpre[0],durpre[1],durres[0],durres[1], Fnoise)
         txt += ', '.join([': '.join((key,str(item))) for key,item in self.imgdict['margin'].items()])
@@ -2373,8 +2500,7 @@ class trial2(wx.Frame):
             fname = fname[:-3]+'mat'
             sio.savemat(fname, {sname : dct}, oned_as='row', do_compression=mat_compress)
         print 'successfully saved as '+fname
-        self.Parent.showmessage('exported successfully.')
-
+    
 
     def validate_sname(self, name):
 
@@ -2454,7 +2580,7 @@ class trial2(wx.Frame):
             rate = 100.0 * a[:4].sum() / a.sum()
             if verbose:
                 print '8-bit coverage (%s) = %f (%%)' % (fp, rate)
-                print ', '.join(['%d-%d: %d' % (b[n], b[n+1], aa) for n, aa in enumerate(a)][2:])
+                print ', '.join(['%d-%d: %d' % (b[n], b[n+1], aa) for n, aa in enumerate(a) if aa][2:] )
             if rate < 99.75 and self.imgdict['fastLoad']:
                 MainFrame.showmessage(self.parent, (
                 'Image data is not in 8-bit range (255).\n'+
@@ -2492,10 +2618,11 @@ class trial2(wx.Frame):
             if event.LeftDown() and self.st_x is None:  # state change (not LeftIsDown)
                 self.st_x, self.st_y = nx, ny
                 #print 'zooming rect drawing started'
-            elif event.LeftUp() and self.st_x and self.st_y:  # state change (not LeftIsUp)
-                # when too small 
-                if self.st_x-2 < nx < self.st_x+2 and \
-                   self.st_y-2 < ny < self.st_y+2:
+            elif event.LeftUp() and self.st_x is not None and self.st_y is not None:  
+                # LeftUp is for state change flag (LeftIsUp for status)
+                # self.st_x can be 0 which is valid input so check if it's None
+                # cancel when too small 
+                if self.st_x-2 < nx < self.st_x+2 and self.st_y-2 < ny < self.st_y+2:
                     self.zoomrect = (0,0,self.w,self.h)
                 else:
                     ex, ey = self.assure_box(nx, ny)
@@ -2747,28 +2874,36 @@ class trial2(wx.Frame):
     def OnReload(self, event):
 
         data_path = self.imgdict['data_path']
-        datafiles = self.tag
+        data_tags = self.tag
 
         print 'data_path', data_path
-        print 'datafiles', datafiles
+        print 'data_tags', data_tags
         print 'Loading the channel#%d' % self.ch
 
         if self.Launcher is not None:
-            #all_frame = (self.Launcher.rb1.GetSelection()==0)
-            all_frame = self.Launcher.rb1.GetSelection()
+            howmanyframe = self.Launcher.rb1.GetSelection()
             need_AvgTr = self.Launcher.cbAvgTr.IsChecked()
             need_MaxPr = self.Launcher.cbMaxPr.IsChecked()
         else:
-            all_frame = 0  # 0 for all frame, 1 for during res and F, 2 for the first in F
+            howmanyframe = 0  # 0 for all frame, 1 for during res and F, 2 for the first in F
             need_AvgTr = need_MaxPr = False
 
         global ch, ref_ch
         ch_bak, ref_ch_bak = ch, ref_ch
         ch, ref_ch = self.ch, self.ref_ch
 
+        Fnoise = self.parent.ParamsPane.sc_Fnoise.GetValue()
+        
+        if self.parent.reftr:
+            reftr = None
+        else:
+            refty = 0
+
         imgdict, tag = pack(
-            data_path, datafiles, all_frame, need_AvgTr, need_MaxPr, self.parent
-                            )
+            data_path, data_tags, howmanyframe, need_AvgTr, need_MaxPr, anatomy_method, 
+            Fnoise, fastLoad, verbose, durpre, durres, ch, ref_ch, reftr, margin
+        )
+
         ch, ref_ch = ch_bak, ref_ch_bak
 
         # overwrite the image data. (self.tag does not change)
@@ -3084,6 +3219,14 @@ class MainFrame(wx.Frame):
         self.export_group_odor.Check(EXPORT_group_odor)
         self.export_transpose_collage.Check(EXPOSE_transpose_collage)
 
+        # Colormap menu
+        Cmaps = wx.Menu()
+        for n,(k,v) in enumerate(colormapOptions.items()):
+            cmMenu = Cmaps.Append(500+n, k, kind=wx.ITEM_CHECK)
+            if k == ColorMapName:  # default option saved in ini file
+                cmMenu.Check(True)
+            self.Bind(wx.EVT_MENU, self.OnCmaps, id=500+n)
+
         # Help
         Help = wx.Menu()
         Help.Append(302, 'Download page on GitHub')
@@ -3099,7 +3242,8 @@ class MainFrame(wx.Frame):
         menubar.Append(File, '&File')
         menubar.Append(tool, '&Options')
         menubar.Append(plugin_menu, '&Plugins')
-        menubar.Append(Export, '&PDF_options')
+        menubar.Append(Export, '&PDF')
+        menubar.Append(Cmaps, '&Colormap')
         menubar.Append(Help, '&Help')
         self.SetMenuBar(menubar)
 
@@ -3224,8 +3368,8 @@ class MainFrame(wx.Frame):
         fname = os.path.basename(self.fp)
         dirname = os.path.dirname(self.fp)
 
-        fp_offset, offset_dict = get_saved_offsets(dirname)
-        show_offsetinfo(fp_offset, offset_dict)
+        fp_offset, offset_dict, Lastdurres, LastFnoise = get_saved_offsets(dirname)
+        show_offsetinfo(fp_offset, offset_dict, Lastdurres, LastFnoise)
 
         if fname.endswith(('tif','ior')):
             if open_flag:
@@ -3316,7 +3460,13 @@ class MainFrame(wx.Frame):
             reftr = None
         else:
             refty = 0
-        imgdic, sorted_tag = pack(data_path, tags, all_frame, AvgTr, MaxPr, self, reftr)
+        
+        Fnoise = self.ParamsPane.sc_Fnoise.GetValue()
+
+        imgdic, sorted_tag = pack(
+                data_path, tags, all_frame, AvgTr, MaxPr, anatomy_method, 
+                Fnoise, fastLoad, verbose, durpre, durres, ch, ref_ch, reftr, margin
+                )
 
         if imgdic is not None:
             if imgdic['F'].any():  # check if images are loaded ok
@@ -3432,6 +3582,7 @@ class MainFrame(wx.Frame):
                 'selectiveWeightedAvgFilter' : selectiveWeightedAvgFilter,
                 'corr2use' : corr2use,
                 'usecsv' : usecsv,
+                'ColorMapName' : '\'%s\'' % ColorMapName,
                 },
             'PDF export' :
                 {'EXPORT_group_odor' : EXPORT_group_odor,
@@ -3673,6 +3824,21 @@ class MainFrame(wx.Frame):
                 #print statement
                 exec(statement)
 
+    def OnCmaps(self, event):
+        global cmap, ColorMapName
+        _id = event.GetId()
+        mb = self.GetMenuBar()
+        for n,(k,v) in enumerate(colormapOptions.items()):
+            theID = 500+n
+            menuItem = mb.FindItemById(theID)
+            if _id == theID:
+                print 'colormap is switched to:', k
+                menuItem.Check(True)
+                cmap = v
+                ColorMapName = k
+            else:
+                menuItem.Check(False)
+
     # Help
     def OnHelp(self, event):
 
@@ -3697,8 +3863,11 @@ class MainFrame(wx.Frame):
             #Supratim Nayak at findicons.com/pack/2339/eloquence
             #Tango Desktop at Project findicons.com/pack/1150/tango
             info.Description = '''Supported Image Formats:
-- ScanImage 3.6, 3.8, MATLAB tiff (Iori Namekawa)
-- Imagor3 acquired ior camera data, Micro-Manager tiff, ImageJ tiff (Otto Fajardo)
+- ScanImage 3.6-3.8, MATLAB tiff (Iori Namekawa).
+- Imagor3 acquired camera data (ior file), Micro-Manager tiff, ImageJ tiff (Otto Fajardo)
+- and possibly what PIL/pillow can open... (especially single channel data)
+
+"clut2b" is a custum made jet-like colormap created by Rainer Friedrich.
 
 Key bindings
 R : start / stop ROI drawing mode
@@ -4609,17 +4778,16 @@ class BatchLauncher(wx.Panel):
 
     def OnStackPlanes(self, event, datafiles=None, lock=True):
         # there are only two sources calling this.
-        # (1) one from the Stack now! button. datafiles, lock will be empty.
-        # datafiles=None is passed to pack which then use fromlauncher as datafiles
-        # (2) the other is Open each file event handler which provide datafiles and lock
+        # (1) the Stack now! button. datafiles, lock will be empty.
+        # (2) Open each file event handler which provide datafiles and lock
         self.parent.log.SetInsertionPointEnd()
         print time.strftime('Packing files: %b %d, %Y (%a) %X')
 
-        global working_singles, need_abort_singles
-        global working, need_abort, ch, ref_ch
+        global working_singles, need_abort_singles, working, need_abort
+        global ch, ref_ch
 
         if ch != ref_ch:
-            MainFrame.showmessage(self.parent, 'Caution! Reference channel is different from loading channel.')
+            Pymagor2.showmessage('Caution! Reference channel is different from loading channel.')
 
         if not working:
 
@@ -4630,18 +4798,24 @@ class BatchLauncher(wx.Panel):
 
                 if not need_abort:
                     data_path = csvdict[1][0]  # in ver2 this only means where the sheet is.
+                    if datafiles is None:
+                        datafiles = fromlauncher
                     howmanyframe = self.rb1.GetSelection()
                     AvgTr = self.cbAvgTr.IsChecked()
                     MaxPr = self.cbMaxPr.IsChecked()
+                    Fnoise = self.parent.ParamsPane.sc_Fnoise.GetValue()
 
-                    if self.cb.GetValue():
+                    if self.cb.GetValue(): # auto align
                         reftr = None
                     else:
                         reftr = self.sp_ref.GetValue()
 
-                    imgdic, tag = pack(data_path, datafiles, howmanyframe, AvgTr, MaxPr, self.parent, reftr)
-                    if not need_abort and imgdic != None:
-                        MainFrame.OnNewChild2(self.parent, imgdic, tag=tag, lock=lock)
+                    imgdic, tag = pack(
+                        data_path, datafiles, howmanyframe, AvgTr, MaxPr, anatomy_method, 
+                        Fnoise, fastLoad, verbose, durpre, durres, ch, ref_ch, reftr, margin
+                        )
+                    if not need_abort and imgdic is not None and imgdic and tag:
+                        Pymagor2.OnNewChild2(imgdic, tag=tag, lock=lock)
                         if pickle_stacked:
                             with open('test_'+tag[0][0]+'.pkl','wb') as f:
                                 pickle.dump(imgdic, f)
@@ -4665,260 +4839,301 @@ class BatchLauncher(wx.Panel):
 
 # Global function
 
+def loadmat(fp):
+    data = sio.loadmat(fp)
+    ind = [key.startswith('pymg') for key in data.keys()].index(True)
+    return data[data.keys()[ind]]
+
+def gray2clut2b(img, cmin, cmax):
+    '''
+    apply a clut2b colormap to dF/F map
+    '''
+    
+    # Strech dFoF value to 8-bit range in order to use the full color map space.
+    img[np.isnan(img)] = cmin  # cmin < 0 will fail if nan is there
+    img[img>cmax] = cmax
+    img[img<cmin] = cmin
+    img = ((img-cmin) * 255.0 / (cmax-cmin)).astype(np.uint8)
+    
+    return cmap[img]
+
+
+def path_check(fullpath, verbose=True):
+    
+    try:
+        if os.path.exists(fullpath):
+            return fullpath
+        else:
+            for D in ['C','F','R']:
+                driveletter, rest = fullpath.split(':')
+                fullpath = os.path.join(D+':', rest)
+                if os.path.exists(fullpath):
+                    if verbose:
+                        print 'The path was changed to %s' % (fullpath)
+                    return fullpath
+            return None
+    except ValueError:
+        return None
+
+def Shift(ImgP, Foffset, padding=True):
+    
+    maxShift = int(np.abs(Foffset[:,0:2]).max()) # max shift
+    if not maxShift:
+        return ImgP
+    else:
+        ImgPshited = np.zeros((ImgP.shape), dtype=ImgP.dtype)
+        
+        for y,x,c,ind in Foffset: # [1:] # yoff, xoff, correlation, ind
+            #print 'offset (y=%d, x=%d), corr=%f, index=%d' % (y,x,c,ind)
+            ind = int(ind)
+            if y: 
+                ImgP[:,:,ind] = np.roll(ImgP[:,:,ind], int(-y), axis=0)
+            if x:
+                ImgP[:,:,ind] = np.roll(ImgP[:,:,ind], int(-x), axis=1)
+        
+        # 0 padding the margin
+        if padding:
+            ImgPshited[maxShift:-maxShift,maxShift:-maxShift,:] = ImgP[maxShift:-maxShift,maxShift:-maxShift,:]
+            return ImgPshited
+        else:
+            return ImgP
+
+
+def pad_imgseq(img):
+    '''
+    img : frames by height by width array of image sequence
+    
+    returns sequence of 1 px mirror reflection padded image 
+    '''
+    n,h,w = img.shape
+    padded = np.zeros((n,h+2, w+2))
+    padded[:, 1:-1, 0] = img[:,:,0]
+    padded[:, 1:-1, w+1] = img[:,:,w-1]
+    padded[:, 0, 1:-1] = img[:,0,:]
+    padded[:, h+1, 1:-1] = img[:,h-1,:]
+    padded[:, 0, 0] = img[:,0,0]
+    padded[:, h+1, 0] = img[:,h-1,0]
+    padded[:, 0, w+1] = img[:,0,w-1]
+    padded[:, h+1, w+1] = img[:,h-1,w-1]
+    padded[:,1:-1,1:-1] = img
+
+    return padded
+
+def pad_img(img):
+    '''
+    img : height x width array of image
+    
+    returns 1 px mirror reflection padded array
+    '''
+    h,w = img.shape
+    padded = np.zeros((h+2, w+2))
+    padded[1:-1, 0] = img[:,0]
+    padded[1:-1, w+1] = img[:,w-1]
+    padded[0, 1:-1] = img[0,:]
+    padded[h+1, 1:-1] = img[h-1,:]
+    padded[0, 0] = img[0,0]
+    padded[h+1, 0] = img[h-1,0]
+    padded[0, w+1] = img[0,w-1]
+    padded[h+1, w+1] = img[h-1,w-1]
+    padded[1:-1,1:-1] = img
+
+    return padded
+
+
+def _applymask(img, maxShift):
+    
+    if maxShift: # [maxShift:-maxShift] indexing would not work if maxShift = 0
+        mask = np.zeros((img.shape), dtype=np.bool)
+        maxShift = int(maxShift)
+        if len(mask.shape) == 3:
+            mask[maxShift:-maxShift,maxShift:-maxShift,:] = True
+        elif len(mask.shape) == 2:
+            mask[maxShift:-maxShift,maxShift:-maxShift] = True
+        else:
+            print 'not supported dimmention'
+            return img
+        
+        img[mask==False] = 0
+    
+    return img
+
+
+def shiftmask(mask, (yoff,xoff)):
+    
+    # Foffset: yoff, xoff, correlation, ind
+    maxShift = np.abs([yoff, xoff]).max() # max shift
+    if maxShift:
+        mask = np.roll(mask, int(yoff), axis=0)
+        mask = np.roll(mask, int(xoff), axis=1)
+        
+        # 0 padding the margin
+        shifted = np.zeros((mask.shape), dtype=mask.dtype)
+        shifted[maxShift:-maxShift,maxShift:-maxShift] = mask[maxShift:-maxShift,maxShift:-maxShift]
+        
+        return shifted
+    else:
+        return mask
+
+
+def getdFoFtraces(img, durpre, masks, raw=False, baseline=False, offset=None, needflip=True, Fnoise=0):
+    
+    if needflip:
+        img = img[::-1,:,:] # pymagor1.0 flip y-axis of the ROI buffer. v2.0's ROI buf does not.
+    img -= Fnoise
+
+    nframes = img.shape[2]
+    F = img[:, :, durpre[0]:durpre[1]+1].mean(axis=2)  # dure[1]+1 because np indexing needs the first number that you dont want
+    F[F==0] = F[F.nonzero()].min()  # replaced with non zero minimum value (important for dFoF movie but here needed?)
+    
+    if baseline:
+        masks.append( (np.dstack(masks).max(axis=2) == False) )
+    
+    waves = np.zeros((nframes,len(masks)))
+    for ind, mask in enumerate(masks):
+        if offset:
+            mask = shiftmask(mask, offset)
+        if raw:
+            for n in range(nframes):
+                waves[n, ind] = np.mean(img[mask,n])
+        else:
+            Favg = np.mean(F[mask])   # Get one number for F
+            for n in range(nframes):
+                waves[n, ind] = np.mean(100.0*(img[mask,n]-Favg)/Favg)
+    
+    if baseline:
+        w = np.ones(nframes/10,'d')/(nframes/10) # flat window for moving average
+        waves[:,ind] = np.convolve(w, waves[:,ind], mode='same')
+    
+    return waves
+
+
+def getmask(poly, (h,w)): # nx is depreciated after matplotlib 1.2.0
+    poly = np.array(poly)
+    ymax = int(np.ceil(poly[:,1].max()))
+    xmax = int(np.ceil(poly[:,0].max()))
+    ymin = int(np.floor(poly[:,1].min()))
+    xmin = int(np.floor(poly[:,0].min()))
+    # sanity check for ymin, ymax, xmin, xmax
+    if ymin<0: ymin = 0
+    if xmin<0: xmin = 0
+    if ymax>=h: ymax = h-1
+    if xmax>=h: xmax = w-1
+    
+    x, y = np.meshgrid(np.arange(xmin, xmax+1), np.arange(ymin, ymax+1))
+    x, y = x.flatten()+0.5, y.flatten()+0.5  # +0.5 enables to pick up 1x1 pixel ROI
+    xypoints = np.vstack((x,y)).T 
+    
+    mask = np.zeros((h,w), dtype=np.bool8)
+    mask[ymin:ymax+1, xmin:xmax+1]  = \
+       Path(poly).contains_points(xypoints).reshape(ymax+1-ymin, xmax+1-xmin)
+    
+    return mask
+
+
+def get_offset_within_trial_img(img, data_folder, fname, durpre, margin, SpaMeds, Fnoise):
+    '''normaly retrive or compute within trial frame alignment offset data but when None is 
+        passed to img from PDF export, update Lastdurres, LastFnoise in offset file.
+    '''
+    durpre = tuple(durpre) # checkdurs returns durpre as tuple but global var is a list
+    fp_offset, offset_dict, Lastdurres, LastFnoise = get_saved_offsets(data_folder)
+    if Lastdurres is None or (img is None):
+        Lastdurres = durres
+    if LastFnoise is None or (img is None):
+        LastFnoise = Fnoise # Pymagor2.ParamsPane.sc_Fnoise.GetValue()
+    
+    key = (fname, ref_ch, durpre, SpaMeds, margin)
+
+    if key in offset_dict.keys():
+        return offset_dict[key]
+    
+    # otherwise we need to compute it
+    if img is not None:
+        offsets = corr.fast_corr(img, margin=margin, dur=durpre, SpaMed=SpaMeds, verbose=True)
+        offset_dict[key] = offsets
+
+        # cleaning old version (without margin in the key)
+        for k in offset_dict.keys():
+            if len(k) == 4:
+                offset_dict.pop(k)
+
+        with open(fp_offset, 'wb') as f:
+            pickle.dump({   'offset_dict':offset_dict, 
+                            'Lastdurres':Lastdurres, 
+                            'LastFnoise': LastFnoise    }, f, protocol=2)
+        return offset_dict[key]
+    else: # just update Lastdurres and LastFnoise when img=None passed from PDF export
+        with open(fp_offset, 'wb') as f:
+            pickle.dump({   'offset_dict':offset_dict, # this is what is loaded above. can be an empty dict
+                            'Lastdurres':Lastdurres, 
+                            'LastFnoise': LastFnoise    }, f, protocol=2)
+        return None
+
+
+def get_saved_offsets(data_folder):
+    fname = os.path.basename(data_folder)+'.offset'
+    fp_offset = os.path.join(data_folder, fname)
+    
+    if os.path.exists(fp_offset):
+
+        loaded = np.load(fp_offset) # np can load pickle :)
+        if 'offset_dict' in loaded.keys():
+            offset_dict = loaded['offset_dict']
+            Lastdurres = loaded['Lastdurres']
+            LastFnoise = loaded['LastFnoise']
+
+        else:
+            offset_dict = loaded
+            Lastdurres = None
+            LastFnoise = None
+    else:
+        offset_dict = {}
+        Lastdurres = None
+        LastFnoise = None
+    
+    return fp_offset, offset_dict, Lastdurres, LastFnoise
+
+
+def show_offsetinfo(fp_offset, offset_dict, Lastdurres, LastFnoise):
+    
+    print 'Offset file: ', fp_offset
+    for k in sorted(offset_dict.keys()):
+        if Lastdurres:
+            message = '\t%s\t\tRef ch=%d\t\tPre-stimulus period=%s\t\tSpatial filters=%s\t\tmargin=%d' % k
+        else: # old ver, may not have margin saved.
+            message = '\t%s\t\tRef ch=%d\t\tPre-stimulus period=%s\t\tSpatial filters=%s' % k[:4]
+            if len(k) == 5:
+                message += '\t\tmargin=%d' % k[4]
+        print message
+    
+    # Pre-stim is for each file because it affest alignment. Stim period just helps users repeat the same analysis
+    if Lastdurres:
+        print 'Last stimulus period=(%d,%d)' % tuple(Lastdurres)
+    if LastFnoise is not None: # Often this is 0 which is evaluated as False
+        print 'Last Background noise offset=%d' % LastFnoise
+
 def _shift_a_frame(img, (yoff, xoff)):
     img = np.roll(img, int(-yoff), axis=0)
     img = np.roll(img, int(-xoff), axis=1)
     return img
 
-def LPMavg(fp, rng, dtype, nch, offsets=None, ch2load=None):
-    '''low peak memoey average'''
-
-    if ch2load is None:
-        ch2load = ch # ch is global var (value from spin control)
-    
-    if len(rng) == 2:
-        st, en = rng
-        fr2load = np.arange(st, en+1) * nch + ch2load
-        # print 'In LPMavg, ch2load: ', ch2load
-    elif type(rng) == np.ndarray:
-        fr2load = rng.astype(int).copy() # + ch2load <- this should be taken care of by rng
-    # print 'In LPMavg, fr2load: ', fr2load
-    
-    # init avg by reading the first frame
-    if fp.endswith(('TIF','tif','TIFF','tiff')):
-        imfile = tifffile.TIFFfile(fp)
-        avg = imfile.asarray(fr2load[0]).astype(np.uint64)
-
-        if len(avg.shape) == 3:
-            avg = avg[0,:,:]
-
-    else: # use pillow for non-tiff
-        im = Image.open(fp)
-        w,h = im.size
-        if dtype == np.uint8: # faster for non-tiff too?
-            avg = np.array(im.convert('L')).astype(np.uint64)
-        else:
-            avg = np.array(im.getdata()).reshape(h,w).astype(np.uint64)
-
-    # now loop
-    if fr2load.size > 1:
-
-        for n in fr2load[1:]:
-
-            if fp.endswith(('TIF','tif','TIFF','tiff')):
-                curframe = imfile.asarray(n)
-            elif dtype == np.uint16:
-                im.seek(n)
-                curframe = np.array(im.getdata()).reshape(h,w)
-            else:
-                im.seek(n)
-                curframe = np.array(im.convert('L'))
-
-            if len(curframe.shape) == 3:
-                curframe = curframe[0,:,:]
-
-            if offsets is not None:
-                fr = n/nch-ch
-                yoff, xoff = offsets[fr, :2]
-                curframe = _shift_a_frame(curframe, (-yoff, xoff))
-
-            avg += curframe
-
-    return (avg[::-1,:] / fr2load.size ).astype(np.float32)
-
-
-def LPMresmap(fp, F, rng, dtype, nch, offsets=None, Fnoise=0):
-    '''low peak memoey odor response map
-    (average dF/F over response frames)'''
-
-    h,w = F.shape
-
-    resmap = np.zeros( (h,w), dtype=np.float64 )
-    fr2load = np.arange(rng[0], rng[1]+1) * nch + ch # ch is global var
-
-    if fp.endswith(('TIF','tif','TIFF','tiff')):
-        imfile = tifffile.TIFFfile(fp)
-    else:
-        im = Image.open(fp)
-
-    F = F[::-1,:] # invert for loop. Fnoise already subtracted
-    for n in fr2load:
-
-        if fp.endswith(('TIF','tif','TIFF','tiff')):
-            curframe = imfile.asarray(n)
-        elif dtype == np.uint8: # fast for 8 bit image
-            im.seek(n)
-            curframe = np.array(im.convert('L'))
-        else: # slowest but general
-            im.seek(n)
-            curframe = np.array(im.getdata()).reshape(h,w)
-
-        if len(curframe.shape) == 3:
-            curframe = curframe[0,:,:]
-
-        if offsets is not None:
-            fr = n/nch-ch
-            yoff, xoff = offsets[fr, :2]
-            curframe = _shift_a_frame(curframe, (-yoff, xoff))
-
-        curframe -= Fnoise
-        resmap += (curframe - F)
-
-    resmap /= (np.diff(rng)+1)
-    resmap /= F
-    resmap *= 100.0
-
-    return  scipy.ndimage.filters.convolve(
-                resmap[::-1,:], kernel, mode='nearest'
-                ).astype(np.float32)  # slower but closer to Imagor3 result
-
-
-def lowpeakmemload(fp, dtype, filt=None, frames2load=False, Fnoise=0):
-    '''
-    load raw frames, average image and gaussian filtered image
-    in a memory friendly manner
-    '''
-
-    _durpre, _durres = checkdurs(fp, parent=None)
-    F_ref = None
-
-    img_info = get_tags(fp)
-    if img_info == None:
-        return None
-    nch = img_info['nch']
-    nframes = img_info['nframes']
-
-    if ch+1 > nch:
-        print 'Channel %d does not exists.' % (ch)
-        return None, None, None, None, None, None
-
-    if Autoalign:
-        if verbose:
-            print 'Autoalign is on.'
-        offsets = get_offset_within_trial(fp, ref_ch, _durpre, margin, (SpatMed, SpatMed2))
-        if offsets is None:
-            return None, None, None, None, None, None
-    else:
-        offsets = None
-
-    F = LPMavg(fp, _durpre, dtype, nch, offsets, ch2load=ch) - Fnoise
-    F[F==0] = F[F.nonzero()].min() # avoid zero division when creating movie
-
-    if frames2load:                    # howmanyframe = 1, 2
-        raw = opentif(fp, dtype, filt, frames2load=frames2load, ch=ch) - Fnoise
-        if nframes<100:
-            rng = [0, nframes-1]
-        else:
-            tmp = np.arange(0, nframes-1) * nch + ch
-            ind = np.linspace(0, tmp.size-1, 100).astype(int) # now pick 100 eaqually spaced
-            rng = tmp[ind]
-
-        anatomy = LPMavg(fp, rng, dtype, nch, offsets, ch2load=ch) - Fnoise
-        DFoFmovie = None
-
-    else:                       # howmanyframe = 0
-        raw = opentif(fp, dtype=dtype, filt=filt, ch=ch) - Fnoise
-
-        if offsets is not None:
-            if offsets.any():
-                raw = Shift(raw, offsets)
-        if anatomy_method:
-            anatomy = raw.std(axis=2).astype(np.float32)
-        else:
-            anatomy = raw.mean(axis=2).astype(np.float32)
-
-        try:
-            DFoFmovie = np.zeros(raw.shape, dtype=np.float32)
-            for n in range(raw.shape[2]): # less memory required this way
-                #DFoFmovie[:,:,n] = 100.0 * (raw[:,:,n] - F)/F
-                temp = 100.0 * (raw[:,:,n] - F)/F
-                DFoFmovie[:,:,n] = scipy.ndimage.filters.convolve(
-                                temp, kernel, mode='nearest'
-                                ).astype(np.float32)
-        except:
-            print 'Not sufficient memory. dF/F movie skipped.'
-            DFoFmovie = None
-
-    resmap = LPMresmap(fp, F, _durres, dtype, nch, offsets, Fnoise=Fnoise)
-
-    if ch != ref_ch:
-        print 'Reference channel (%d) is different from loading channel (%d).' % (ref_ch, ch)
-        F_ref = LPMavg(fp, _durpre, dtype, nch, offsets, ch2load=ref_ch) - Fnoise
-        F_ref[F_ref==0] = F_ref[F_ref.nonzero()].min()
-    else:
-        F_ref= F
-
-    return nframes, raw, F, F_ref, resmap, anatomy, DFoFmovie
-
 
 def checkdurs(fp, parent=None):
     
-    # print 'checkdurs: fp', fp, os.path.exists(fp)
-    nframes = get_tags(fp)['nframes']
-    #print 'nframes', nframes, 'durs', durpre, durres
+    img_info = get_tags(fp)
+    nframes = img_info['nframes']
+    nch = img_info['nch']
 
     if nframes <= max(max(durres, durpre)):
-        if parent:
-            MainFrame.showmessage( parent,
-            '%d is too large and is replaced with the max frame number (%d) for %s\n' % \
-            (max(max(durres, durpre)), nframes-1, fp) )
-
-        _durpre = [fr if fr < nframes-1 else nframes-1 for fr in durpre]
-        _durres = [fr if fr < nframes-1 else nframes-1 for fr in durres]
+        Pymagor2.showmessage(
+        '%d is larger than the max frame number (%d) for %s\n' % 
+        (max(max(durres, durpre)), nframes-1, fp) )
+        return None, None
+        # _durpre = [fr if fr < nframes-1 else nframes-1 for fr in durpre]
+        # _durres = [fr if fr < nframes-1 else nframes-1 for fr in durres]
     else:
         _durpre, _durres = durpre, durres
 
-    return tuple(_durpre), tuple(_durres)
-
-
-def LoadImage(group, data_path, howmanyframe, dtype, parent=None, Fnoise=0):
-    ''' Concatinate trial frame data in a 3D array '''
-
-    filt = None # median filter no longer used other than alignment
-
-    nframesP, rawP, Fpool, F_refpool, resP, anatomyP, DFoFfilP = [],[],[],[],[],[],[]
-    for tag in group:
-        wx.Yield() # this magically make the app responsive
-
-        fp = path2img(data_path, tag)
-        # print 'LoadImage fp, tag', fp, tag
-        _durpre, _durres = checkdurs(fp, parent=parent)
-
-        if howmanyframe==0:     # I need all frames!
-            frames2load = False
-        elif howmanyframe==1:   # only durs
-            frames2load = [_durpre, _durres]
-        elif howmanyframe==2:   # the first frame of durpre
-            frames2load = [_durpre[0]]
-
-        print 'Loading ', fp
-        
-        nframes, raw, F, F_ref, resmap, anatomy, DFoFmovie = \
-            lowpeakmemload(fp, dtype, frames2load=frames2load, Fnoise=Fnoise)
-        if raw is None:
-            return None, None, None, None, None, None
-
-        nframesP.append(nframes)
-        rawP.append(raw)
-        Fpool.append(F)
-        F_refpool.append(F_ref)
-        resP.append(resmap)
-        anatomyP.append(anatomy)
-        DFoFfilP.append(DFoFmovie)
-
-    # lazy but fast concatination.
-    rawP = np.dstack(rawP)  # np.array(rawP) would be x10 slower
-    Fpool = np.dstack(Fpool)
-    if F_refpool:
-        F_refpool = np.dstack(F_refpool)
-    resP = np.dstack(resP)
-    anatomyP = np.dstack(anatomyP)
-    if howmanyframe == 0:
-        DFoFfilP = np.dstack(DFoFfilP)
-    else:
-        DFoFfilP = None
-
-    return nframesP, rawP, Fpool, F_refpool, anatomyP, resP, DFoFfilP
+    return tuple(_durpre), tuple(_durres), nframes, nch
 
 
 def path2img(data_path, tag):
@@ -4935,221 +5150,6 @@ def path2img(data_path, tag):
         return None, None, None, None, None
 
     return os.path.join(data_path, tag[0])
-
-
-def pack(data_path, tags, howmanyframe, need_AvgTr, need_MaxPr, parent, reftr=None):
-    '''
-    data_path: usually the parent folder path of the image files which can be in subfolders.
-    tags:       a list of image file meta data [fname, plane, stim, trial, ..., folder]
-    howmanyframe: int. option for raw frames to pack.   0:all raw frames. 1: only pre(F) and res raw frames, 2: only the first raw frame of pre (F)
-    need_AvgTr: bool. average projection through all trials for the field-of-view
-    need_MaxPr: bool. max projection through all trials for the field-of-view
-    parent: trial2 class instance. used to get Fnoise from GUI and to show some dialog when needed.
-
-    also rely on these global vars:
-
-    verbose: bool. if True, show more debugging/processing message
-    fastLoad : bool. if True, dtype=np.uint8 otherwise uint16
-    ch: int specifying channel to load
-    ref_ch: int specifying the reference channel for trial alignment to load
-    Fnoise: int specifying the background noise to subtract from F
-    durpre: tuple of (int, int) specifying frame numbers (beggining and end of F baseline period)
-    durres: tuple of (int, int) specifying frame numbers (beggining and end of response period)
-
-    Processing flow:
-        1. find unique_planes in [tags] and loop through each
-            2. for each unique plane, load F_ref (frame average of image in ref_ch) for all trials as numpy array
-            3. do trial alignment and get Fosset containing xy translation for all trials
-            4. compute trial average for F and res for each stimulus condition using Fosset
-            5. append these results into lists
-        6. pack all these lists together into imgdict
-    '''
-
-    if verbose:
-        t0 = time.time()
-
-    if tags is None:
-        tags = fromlauncher
-
-    if fastLoad:
-        dtype = np.uint8
-    else:
-        dtype = np.uint16
-    
-    Fnoise = parent.ParamsPane.sc_Fnoise.GetValue()
-    
-    rawpoolP, FpoolP, F_refpoolP, respoolP = [],[],[],[]
-    anatomyP, FoffsetP, DFoFfilpoolP = [],[],[]
-    odormapsP, RF_FsP, odormap_zodor = [],[],[]
-    AvgTr, MaxPr = [],[]
-    sorted_tag = []
-    margin_dict = {}
-
-    fp = path2img(data_path, tags[0])
-    _durpre, _durres = checkdurs(fp, parent=None) # assuming the frame number matches in all files
-
-    planes = np.unique([items[1] for items in tags])
-    if np.all([a.startswith('z') for a in planes]):
-        print '\t !!!!All filed-of-view names starting with z. Special sorting method applied. !!!!'
-        index = np.argsort( z_prefix(planes) )
-        unique_planes = planes[index]
-    else:  # general sorting. may not be what you expect
-        unique_planes = np.sort(planes).tolist()
-
-    for z in unique_planes:     # plane
-
-        # pre-sort concentration series of the same odor
-        eachplane = [ items for items in tags if z == items[1] ]
-        trials =    [dd[3] for dd in eachplane]
-        odors =     [ dd[2].lower() for dd in eachplane ] # we want case insensitive sort                    
-        # then lexsort for odors first (1st factor) and trials (2nd factor)
-        eachplane = [ eachplane[ind] for ind in np.lexsort((trials, odors)) ]
-
-        nframesP, raw, F, F_ref, anatomy, res, DFoF = LoadImage(
-                    eachplane, data_path, howmanyframe, dtype, parent, Fnoise)
-        
-        # LoadImage returns None when error or aborted
-        if raw is None:
-            return None, None
-        
-        for n, nframe in enumerate(nframesP):
-            eachplane[n].insert(-1, nframe)
-        sorted_tag.append(eachplane)
-
-        # Align trials
-        if len(eachplane) == 1:  # no need to align
-            Foffset = np.array([[0,0,0,0]])
-            margin_dict[z] = 0
-
-        else:  # need alignment
-            if verbose:
-                print 'Spatial median filter option being used: Template=%s, Target=%s' % (SpatMed, SpatMed2)
-
-            if reftr is not None:   # reftr can be 0 when manually specified
-                Foffset = corr2d( F_ref, margin, reftr, (SpatMed, SpatMed2) )
-            else:  # auto ref trial on, try  the first trial as ref and optimize
-                Foffset = corr2d( F_ref, margin, 0, (SpatMed, SpatMed2) )
-                total_offset = [ abs(e).max(axis=0).sum() for e in
-                                [Foffset[:,0:2] - Foffset[n,0:2] for n in
-                                range(Foffset.shape[0])] ]
-                tr = total_offset.index(min(total_offset))
-                print 'For the ref trial at plane (%s) Ref ch=(%d), trial #%d (%s) was used.' % (z, ref_ch, tr, eachplane[tr][0])
-                Foffset = corr2d( F_ref, margin, tr, (SpatMed, SpatMed2) )
-
-            if Foffset[:,:2].any() or True: # need to shift and re-checek?
-                print 'Offset before alignment:\n  [y, x, corr, index]\n', Foffset
-                margin_dict[z] = np.abs(Foffset[:,:2]).max()
-                print '0 padding margin = ', margin_dict[z]
-
-                F       = Shift(F.copy(), Foffset)
-                F_ref   = Shift(F_ref.copy(), Foffset)
-                res     = Shift(res.copy(), Foffset)
-                anatomy = Shift(anatomy.copy(), Foffset)
-                if howmanyframe==0:  # this option means "all frames"
-                    DFoF = Shift(DFoF.copy(), Foffset)
-
-                # re-check
-                if reftr is not None:  # reftr can be 0 when manually specified
-                    Foffset2 = corr2d(F_ref, margin, reftr, (SpatMed, SpatMed2))
-                else:    # auto-on
-                    Foffset2 = corr2d(F_ref, margin, tr, (SpatMed, SpatMed2))
-                    print '\nSuggested ref trial at plane %s is #%s  %s\n' % (z, tr, eachplane[tr][0])
-
-                print 'After alignment:\n  [y, x, corr, index]\n', Foffset2
-                if abs(Foffset2[:,0:2]).max() > 1:
-                    txt = 'The current shift range setting (=%d) may not be large enough for plane %s.\nOr, try again without Median filter' % (margin, z)
-                    MainFrame.showmessage(parent, txt)
-
-        RF_Fs, odormaps, odors = average_odormaps(
-                            data_path,
-                            eachplane,
-                            Foffset,
-                            Autoalign,
-                            (_durpre,_durres),
-                            margin,
-                            (SpatMed, SpatMed2),
-                            ch=ch,
-                            ref_ch=ref_ch,
-                            dtype=dtype,
-                            Fnoise=Fnoise
-                            )
-
-        if len(eachplane) > 1:
-            # filp y-axis due to the design changes in Pymagor v2.0
-            Foffset[:,0] = -Foffset[:,0]
-        FoffsetP.append(Foffset)
-
-        # append for different planes.
-        rawpoolP.append(raw)
-        FpoolP.append(F)
-        respoolP.append(res)
-        anatomyP.append(anatomy)
-        if howmanyframe == 0:
-            DFoFfilpoolP.append(DFoF)
-        odormapsP.append(odormaps)
-        RF_FsP.append(RF_Fs)
-        odormap_zodor.append([(z,o) for o in odors])
-
-        if need_AvgTr:
-            AvgTr.append( np.mean(np.dstack(respoolP),2) )
-        if need_MaxPr:
-            MaxPr.append( np.max(np.dstack(respoolP),2) )
-
-    # flatten the list of sublist
-    sorted_tag = [item for sublist in sorted_tag for item in sublist]
-    odormap_zodor = [item for sublist in odormap_zodor for item in sublist]
-    if len(FoffsetP)>1:
-        Foffsets = np.vstack(FoffsetP)
-    else:
-        Foffsets = FoffsetP[0]
-
-    # packing
-    imgdict = dict()
-
-    if len(rawpoolP)>1:
-        try:
-            imgdict['unshifted frames'] = np.dstack(rawpoolP)
-        except MemoryError:
-            print 'Memory Error. Packing only one frame per trial'
-            imgdict['unshifted frames'] = rawpoolP[:,:,0::len(eachplane)]
-    else:
-        imgdict['unshifted frames'] = rawpoolP[0]
-
-    if howmanyframe == 0:
-        if len(DFoFfilpoolP) == 1:
-            imgdict['dFoFfil'] = DFoFfilpoolP[0]  # avoid over flattening
-        else:
-            imgdict['dFoFfil'] = np.dstack(DFoFfilpoolP)
-
-    # common stuff
-    imgdict['data_path'] = data_path
-    _durpre, _durres = checkdurs(fp)
-    imgdict['durpre'] = _durpre
-    imgdict['durres'] = _durres
-    imgdict['fastLoad'] = fastLoad
-    imgdict['uniquekey'] = unique_planes
-    imgdict['F'] = np.dstack(FpoolP)
-    imgdict['anatomy'] = np.dstack(anatomyP)
-    imgdict['dFoFavg'] = np.dstack(respoolP)
-    if odormapsP:
-        imgdict['avg_odormaps'] = np.dstack(odormapsP)
-        imgdict['avg_F'] = np.dstack(RF_FsP)
-        imgdict['avg_odormap odornames'] = odormap_zodor
-    if need_AvgTr:
-        imgdict['avg projection'] = np.dstack(AvgTr)
-    if need_MaxPr:
-        imgdict['max projection'] = np.dstack(MaxPr)
-    if FoffsetP:
-        imgdict['Foffset'] = Foffsets
-    else:
-        imgdict['Foffset'] = 0
-    imgdict['margin'] = margin_dict
-
-    if verbose:
-        _sizeof = np.sum([ele.nbytes for ele in imgdict.values() if type(ele) == np.ndarray])/1024.0/1024.0
-        print '\nAbout %2.2f s to load. %2.3f MB' % (time.time() - t0, _sizeof)
-
-    return imgdict, sorted_tag
 
 
 def pack2npobj(ROI, height=False):
@@ -5170,6 +5170,461 @@ def pack2npobj(ROI, height=False):
 def versiontuple(v):
     return tuple([int(vv) if len(vv)==1 else int(vv[0])  for vv in v.split(".") ])
 
+
+def getIndicesInWhole(part, whole):
+    'compare two different size vectors and return the indices of part elements in whole'
+    return [np.argmax(whole == element) for element in part]
+
+
+def ComputeThisPlane(data_path, tags, howmanyframe, need_AvgTr, need_MaxPr, anatomy_method, 
+        Fnoise, fastLoad, verbose, durpre, durres, ch, ref_ch, reftr=None, margin=9, 
+        ROIpoly_n=False, Foffsets=None, wantsraw=False):
+    '''This is a dual-purpose function:
+        1. When called from pack, it takes exactly the same args as pack except that 
+        tags is now filtered for one plane (field-of-view). For this mode optional ROIpoly_n 
+        and Foffsets should be omitted. 
+        It does everything for this plane (i.e., load images, compute F, F_ref, res etc, 
+        align F_ref, then compute trial average for each odor, do avg/max projections)
+        
+        2. When ROIpoly_n and Foffsets are provided, we only want trial average dF/F traces 
+        for a stimulus-plane combination. [tags] and [Foffsets] are already filtered for
+        one stimulus-plane combination.
+        ROIpoly_n : [roipolys, cellnumbers]
+        Foffsets  : a numpy array of [yoff, xoff, r, nn] for each file in tags (e.i., the same order with tags)
+        wantsraw  : bool. indicate raw pixel value output instead of dF/F (%)
+    '''
+
+    if fastLoad:
+        dtype = np.uint8
+    else:
+        dtype = np.uint16
+    
+    nframesP = []
+    rawP, durresrawP, F_P, F_refP, anatomyP, resmapP, DFoFmovieP = [],[],[],[],[],[],[]
+    z = tags[0][1] # current plane name (all the same)
+    maxShiftWithinTrP = []
+
+    # First, we need F_ref from each image. This is used for trial alignment (simple x,y translation only, Foffset).
+    # Since we are opening those file anyway, we will also compute nframes, raw, F, anatomy, resmap, DFoFmovie. 
+    # Using Foffset to shift images, we can finally compute trial average of F (F_travg), 
+    # response map (resmap_travg). We will also create a list (odors_travg) containing odor names 
+    # in the same order as F_travg and resmap_travg. 
+    
+    if ROIpoly_n:
+        raw4trialAvg = None
+    
+    for n, tag in enumerate(tags): # n is used for Foffsets
+
+        if need_abort:
+            return None
+
+        fp = path2img(data_path, tag)
+        img_info = get_tags(fp) # let's access file just once for meta data
+        nframes = img_info['nframes']
+        nch = img_info['nch']
+        # we make use of nframes and nch to find out which frames we do need to load from file.
+        # 'anatomy' is defined as the average of all frames.
+        # if more than 100 frames, we pick 100 frames eaqually spaced from the entire file.
+        fr2load_pre = np.arange(durpre[0], durpre[1]+1) * nch + ch
+        fr2load_res = np.arange(durres[0], durres[1]+1) * nch + ch
+        if nframes<100 or Autoalign or ROIpoly_n:  # Autoalign (within trial) or ROIpoly_n needs all frames
+            fr2load_anat = np.arange(0, nframes) * nch + ch
+            frames2load = fr2load_anat
+        else: # pick 100 frames eaqually spaced for anatomy
+            tmp = np.arange(0, nframes) * nch + ch
+            ind = np.linspace(0, tmp.size-1, 100).astype(int) 
+            fr2load_anat = tmp[ind]
+            frames2load = np.unique(np.hstack((fr2load_anat, fr2load_pre, fr2load_res)))
+        loadedframes = opentif(fp, dtype, filt=None, frames2load=frames2load, ch=ch, nch=nch, nframes=nframes) - Fnoise
+
+        if Autoalign:
+            if verbose:
+                print 'Autoalign is on.'
+            # when Autoalign = True, loadedframes has all frames
+            withinTrOffsets = get_offset_within_trial_img(loadedframes, tag[-1], tag[0], durpre, margin, (SpatMed, SpatMed2), Fnoise)
+            loadedframes = Shift(loadedframes.copy(), withinTrOffsets, padding=False)
+            maxShiftWithinTr = np.abs(withinTrOffsets[:,0:2]).max() # max shift
+            maxShiftWithinTrP.append(maxShiftWithinTr)
+            # during dF/F computation, gausian filter will smear out the margin zero padding
+            # remove margin at the end before appending
+ 
+        if ROIpoly_n:  # we only need dF/F traces for one stim-plane combination
+            # use Foffsets to align raw frames for trial average
+            yoff, xoff, r, nn = Foffsets[n]
+            if yoff: loadedframes = np.roll(loadedframes, int(-yoff), axis=0)
+            if xoff: loadedframes = np.roll(loadedframes, int(-xoff), axis=1)
+
+            if raw4trialAvg is not None:
+                raw4trialAvg += loadedframes  
+            else: # images we deal are usually 16 bit. 64-16=48 bit to buffer overflow. should be safe.
+                raw4trialAvg = loadedframes.astype(np.float64)
+
+        else: # normal operation, computing F, response, etc
+
+            # raw
+            if howmanyframe == 0:   # load all frames
+                raw = loadedframes
+            elif howmanyframe == 1: # only durpre + durpre
+                ind = getIndicesInWhole(np.hstack((fr2load_pre, fr2load_res)), frames2load)
+                raw = loadedframes[:,:,ind]
+            elif howmanyframe == 2: # the first frame of F
+                ind = getIndicesInWhole([fr2load_pre[0]], frames2load)
+                raw = loadedframes[:,:,ind]
+
+            # F and ref_F
+            Find = getIndicesInWhole(fr2load_pre, frames2load)
+            F = loadedframes[:,:,Find].mean(axis=2).astype(np.float32)
+            F[F==0] = F[F.nonzero()].min() # avoid zero division when creating movie
+
+            if ch != ref_ch:
+                print 'Reference channel (%d) is different from loading channel (%d).' % (ref_ch, ch)
+                frames2load_ref = np.arange(durpre[0], durpre[1]+1) * nch + ref_ch
+                F_ref = opentif(fp, dtype, filt=None, frames2load=frames2load_ref, ch=ref_ch).mean(axis=2).astype(np.float32) - Fnoise
+                F_ref[F_ref==0] = F_ref[F_ref.nonzero()].min()
+            else:
+                F_ref = F # pointer seems enough (no np.copy() needed)
+            
+            # anatomy
+            _ind = getIndicesInWhole(fr2load_anat, frames2load)
+            if anatomy_method:  # global anatomy_method flag
+                anatomy = loadedframes.std(axis=2).astype(np.float32)
+            else:
+                anatomy = loadedframes.mean(axis=2).astype(np.float32)
+
+            # resmapP (dF/F frame average for the response period)
+            resind = getIndicesInWhole(fr2load_res, frames2load)
+            res = loadedframes[:,:,resind]
+            dFoF = 100.0 * (res.mean(axis=2) - F) / F
+            resmap = ndimage.filters.convolve(dFoF, kernel, mode='nearest').astype(np.float32)
+
+            # DFoFmovieP
+            if howmanyframe == 0:   # load all frames
+                try:
+                    DFoFmovie = np.zeros(raw.shape, dtype=np.float32)
+                    # we use 2D filter, less peak memory and more similar result 
+                    # to IgorPro with our custum gaussian kernel
+                    for n in range(raw.shape[2]): 
+                        temp = 100.0 * (raw[:,:,n] - F)/F
+                        DFoFmovie[:,:,n] = ndimage.filters.convolve(
+                                        temp, kernel, mode='nearest'
+                                        ).astype(np.float32)
+                except:
+                    print 'Not sufficient memory. dF/F movie skipped.'
+                    DFoFmovie = None
+            else:
+                DFoFmovie = None
+
+            # now append everything
+            rawP.append(raw)
+            if howmanyframe > 0: # we need this later again
+                durresrawP.append(res)
+            F_P.append(F)
+            F_refP.append(F_ref)
+            anatomyP.append(anatomy)
+            resmapP.append(resmap)
+            DFoFmovieP.append(DFoFmovie)
+            nframesP.append(nframes) # legacy stuff for compatibility (sorted_tag)
+
+            wx.Yield()
+    # end of for tag in tags
+
+    if ROIpoly_n: # continue on computing trial average dF/F
+        roipolys, cellnumbers = ROIpoly_n
+        masks = []
+        maxShift = np.abs(Foffsets[:,:2]).max()
+        h,w,_ = raw4trialAvg.shape
+        for roi in roipolys:
+            masks.append(getmask(roi,(h,w)))
+        
+        # normalize raw4trialAvg by # of trials per stimulus (i.e., averaging)
+        raw4trialAvg /= len(tags) # tags is filtered for this stim-plane
+        rawimg = _applymask(raw4trialAvg, maxShift)
+        
+        waves = getdFoFtraces(rawimg, durpre, masks, 
+                raw=wantsraw, baseline=False, offset=None, needflip=True)
+
+        return waves
+
+    # Foffset (Align trials)
+    # now that we have all F_ref. we can compute x,y offset.
+    
+    # lazy but fast concatination for corr2d function which need numpy array
+    # rawP = np.dstack(rawP) do this after trial averaging 
+    F_P = np.dstack(F_P)
+    F_refP = np.dstack(F_refP)  # np.array(rawP) would be x10 slower
+    anatomyP = np.dstack(anatomyP)
+    resmapP = np.dstack(resmapP)
+    if howmanyframe == 0:
+        DFoFmovieP = np.dstack(DFoFmovieP)
+
+    if len(tags) == 1:  # only 1 trial
+        Foffset = np.array([[0,0,0,0]])
+        margin4dict = 0
+
+    else:  # need to align trials
+        if verbose:
+            print 'Spatial median filter option being used: Template=%s, Target=%s' % (SpatMed, SpatMed2)
+
+        if reftr is not None:   # reftr can be 0 when manually specified
+            Foffset = corr2d( F_refP, margin, reftr, (SpatMed, SpatMed2) )
+        else:  # auto ref trial on, try  the first trial as ref and optimize
+            Foffset = corr2d( F_refP, margin, 0, (SpatMed, SpatMed2) )
+            total_offset = [ abs(e).max(axis=0).sum() for e in
+                            [Foffset[:,0:2] - Foffset[n,0:2] for n in
+                            range(Foffset.shape[0])] ]
+            tr = total_offset.index(min(total_offset))
+            print 'For the ref trial at plane (%s) Ref ch=(%d), trial #%d (%s) was used.' % (z, ref_ch, tr, tags[tr][0])
+            if tr != 0: # re-do alignment with the best ref trial if needed
+                Foffset = corr2d( F_refP, margin, tr, (SpatMed, SpatMed2) )
+        
+        wx.Yield()
+        margin4dict = np.abs(Foffset[:,:2]).max()
+        if margin4dict: # need to shift and re-checek?
+            print 'Offset before alignment:\n  [y, x, corr, index]\n', Foffset
+            print '0 padding margin = ', margin4dict
+
+            F_P      = Shift(F_P.copy(), Foffset)
+            F_refP   = Shift(F_refP.copy(), Foffset)
+            resmapP  = Shift(resmapP.copy(), Foffset)
+            anatomyP = Shift(anatomyP.copy(), Foffset)
+            if howmanyframe==0:  # this option means "all frames"
+                DFoFmovieP = Shift(DFoFmovieP.copy(), Foffset)
+
+            # re-check
+            if reftr is not None:  # reftr can be 0 when manually specified
+                Foffset2 = corr2d(F_refP, margin, reftr, (SpatMed, SpatMed2))
+            else:    # auto-on
+                Foffset2 = corr2d(F_refP, margin, tr, (SpatMed, SpatMed2))
+                print '\nSuggested ref trial at plane %s is #%s  %s\n' % (z, tr, tags[tr][0])
+
+            print 'After alignment:\n  [y, x, corr, index]\n', Foffset2
+            if abs(Foffset2[:,0:2]).max() > 1:
+                txt = 'The current shift range setting (=%d) may not be large enough for plane %s.\nOr, try again without Median filter' % (margin, z)
+                Pymagor2.showmessage(txt)
+
+    # F_travg, resmap__travg, stimnames_travg
+    F_travgP, resmap_travgP, stimnames_travgP = [], [], []
+
+    # remove all the duplicates while preserving the order
+    # http://stackoverflow.com/questions/480214/how-do-you-remove-duplicates-from-a-list-in-python-whilst-preserving-order
+    seen = set()  # empty set object
+    stimuli = [x for x in ([dd[2] for dd in tags]) if x not in seen and not seen.add(x)]
+    for stim in stimuli:
+        thisStimInd = [n for n,t in enumerate(tags) if t[2] == stim]
+        RF_F = F_P[:,:,thisStimInd].mean(axis=2)
+        RF_F[RF_F==0] = RF_F[RF_F.nonzero()].min()
+        
+        F_travgP.append(RF_F)
+
+        # now re-calculate response using new RF_F
+        n_resframes = durres[1]-durres[0]+1
+        FF = np.tile(RF_F[:,:,np.newaxis], (1,1, len(thisStimInd) * n_resframes))
+
+        # Autoalign guarantee all frames, howmanyframe == 0 means response frames should be in rawP
+        if howmanyframe == 0:
+            dFoF = np.dstack([r[:,:,resind] for n,r in enumerate(rawP) if n in thisStimInd]).astype(np.float32)
+        else: # when howmanyframe>0, raw frames for response period kept aside in durresrawP
+            dFoF = np.dstack([r for n,r in enumerate(durresrawP) if n in thisStimInd]).astype(np.float32)
+        
+        # apply Foffset to all frames. we need to modify Foffset though.
+        _Foffset = np.vstack([np.tile(fo, (n_resframes,1)) for fo in Foffset[thisStimInd,:]])
+        _Foffset[:,3] = np.arange(len(thisStimInd) * n_resframes)
+        dFoF = Shift(dFoF.copy(), _Foffset)
+        
+        dFoF -= FF  # in-place operation is faster
+        dFoF /= FF
+        dFoF *= 100.0
+        # resmap_travgP.append(dFoF.mean(axis=2).astype(np.float32))
+        dFoF = dFoF.mean(axis=2)
+        dFoF = _applymask(dFoF, margin4dict) # w/o this, filtering will smear out artifact
+        responsemap = ndimage.filters.convolve(dFoF, kernel, mode='nearest').astype(np.float32)
+        resmap_travgP.append(responsemap)
+        
+        stimnames_travgP.append(stim)
+        wx.Yield()
+    
+    if len(resmap_travgP)>1:
+        resmap_travgP = np.dstack(resmap_travgP)
+        F_travgP = np.dstack(F_travgP)
+    else:
+        h,w = resmap_travgP[0].shape
+        resmap_travgP = resmap_travgP[0].reshape(h,w,1) # dig out from the list
+        F_travgP = F_travgP[0].reshape(h,w,1)
+    
+    
+    resmap_travgP = _applymask(resmap_travgP, margin4dict) # removing filtering artifacts.
+    F_travgP = _applymask(F_travgP, margin4dict)
+
+    # finally convert rawP list into numpy array
+    rawP = np.dstack(rawP)
+    
+    # apply margin zero-padding
+    if Autoalign:
+        for n, _maxShift in enumerate(maxShiftWithinTrP):
+            if _maxShift:
+                rawP[:,:,n] = _applymask(rawP[:,:,n], _maxShift)
+                if howmanyframe > 0: # we need this later again
+                    res = _applymask(res, _maxShift)
+                F_P[:,:,n] = _applymask(F_P[:,:,n], _maxShift)
+                F_refP[:,:,n] = _applymask(F_refP[:,:,n], _maxShift)
+                anatomyP[:,:,n] = _applymask(anatomyP[:,:,n], _maxShift)
+                resmapP[:,:,n] = _applymask(resmapP[:,:,n], _maxShift)
+                if howmanyframe==0:
+                    DFoFmovieP[:,:,n] = _applymask(DFoFmovieP[:,:,n], _maxShift)
+
+    
+    return nframesP, rawP, F_P, F_refP, anatomyP, resmapP, DFoFmovieP, Foffset, \
+            margin4dict, F_travgP, resmap_travgP, stimnames_travgP
+
+def pack(data_path, tags, howmanyframe, need_AvgTr, need_MaxPr, anatomy_method, 
+        Fnoise, fastLoad, verbose, durpre, durres, ch, ref_ch, reftr=None, margin=9):
+    '''refactored pack and its friends
+    (LPMavg, LPMresmap, lowpeakmemload, checkdurs, LoadImage, average_odormaps)
+
+    data_path: usually the parent folder path of the image files which can be in subfolders.
+    tags: a list of image file meta data [fname, plane, stim, trial, ..., folder]
+    howmanyframe: int. option for raw frames to pack.   0:all raw frames. 1: only pre(F) and res raw frames, 2: only the first raw frame of pre (F)
+    need_AvgTr: bool. average projection through all trials for the field-of-view
+    need_MaxPr: bool. max projection through all trials for the field-of-view
+    anatomy_method: bool. If True, std is used instead of mean
+
+    Fnoise: int specifying the background noise to subtract from F
+    fastLoad: bool. if True, dtype=np.uint8 otherwise uint16
+    verbose: bool. if True, show more debugging/processing message
+    durpre: tuple of (int, int) specifying frame numbers (beggining and end of F baseline period)
+    durres: tuple of (int, int) specifying frame numbers (beggining and end of response period)
+    
+    ch: int specifying channel to load
+    ref_ch: int specifying the reference channel for trial alignment to load
+    reftr: (optional) int specifying the index of the reference trial in [tag]
+    margin: max pixel shift range for alignment
+    '''
+    
+    if verbose:
+        t0 = time.time()
+
+    # we assume all files have the same number of frames 
+    fp = path2img(data_path, tags[0]) # so just check the first image
+    # maxFrames = get_tags(fp)['nframes']
+    durpre, durres, maxFrames, nch = checkdurs(fp, parent=None)
+    if durpre is None:
+        return None, None
+
+    # find unique field-of-views (planes)
+    planes = np.unique([items[1] for items in tags])
+    if np.all([a.startswith('z') for a in planes]):
+        print '\t !!!!All filed-of-view names starting with z. Special sorting method applied. !!!!'
+        index = np.argsort( z_prefix(planes) )
+        unique_planes = planes[index]
+    else:  # general sorting. may not be what you expect. name planes carefully...
+        unique_planes = np.sort(planes).tolist()
+
+    sorted_tag = []
+    rawP, F_P, F_refP, anatomyP, resmapP, DFoFmovieP = [], [], [], [], [], []
+    FoffsetP = []
+    margin_dict = {}
+    AvgProj, MaxProj = [],[]
+    F_travgP, resmap_travgP, stimnames_travgP = [], [], []
+    for z in unique_planes:     # field-of-views (ex. planes at different z levels)
+        eachplane = [ items for items in tags if z == items[1] ]
+        trials =    [ dd[3] for dd in eachplane ]
+        odors =     [ dd[2].lower() for dd in eachplane ] # we want case insensitive sort
+        # then lexsort for odors first (1st factor) and trials (2nd factor)
+        eachplane = [ eachplane[ind] for ind in np.lexsort((trials, odors)) ]
+
+        results = ComputeThisPlane(  data_path, eachplane, howmanyframe, need_AvgTr, need_MaxPr, 
+            anatomy_method, Fnoise, fastLoad, verbose, durpre, durres, ch, ref_ch, reftr, margin)
+        if results is not None: # None when aborted
+            nframes, raw, F, F_ref, anatomy, resmap, DFoFmovie, Foffset, margin4dict, \
+            F_travg, resmap_travg, stimnames_travg = results
+        else:
+            return None, None
+
+        # append for different planes.
+        rawP.append(raw)
+        F_P.append(F)
+        F_refP.append(F_ref)
+        anatomyP.append(anatomy)
+        resmapP.append(resmap)
+        if howmanyframe == 0:
+            DFoFmovieP.append(DFoFmovie)
+        
+        F_travgP.append(F_travg)
+        resmap_travgP.append(resmap_travg)
+        stimnames_travgP.append([(z,o) for o in stimnames_travg])
+
+        if need_AvgTr:
+            AvgProj.append( np.mean(np.dstack(resmapP),2) )
+        if need_MaxPr:
+            MaxProj.append( np.max(np.dstack(resmapP),2) )
+        
+        for n, nframe in enumerate(nframes): # insert # of frame found in image into tag
+            eachplane[n].insert(-1, nframe)  # this goes to imgdict
+        sorted_tag.append(eachplane)
+        
+        if len(eachplane) > 1:
+            # filp y-axis due to the design changes in Pymagor v2.0
+            Foffset[:,0] = -Foffset[:,0]
+        FoffsetP.append(Foffset)
+        margin_dict[z] = margin4dict
+
+    # flatten
+    sorted_tag = [item for sublist in sorted_tag for item in sublist]
+    stimnames_travgP = [item for sublist in stimnames_travgP for item in sublist]
+
+    # packing
+    imgdict = dict()
+
+    if len(rawP)>1:
+        try:
+            imgdict['unshifted frames'] = np.dstack(rawP)
+        except MemoryError:
+            print 'Memory Error. Packing only one frame per trial'
+            imgdict['unshifted frames'] = rawP[:,:,0::len(eachplane)]
+    else:
+        imgdict['unshifted frames'] = rawP[0]
+
+    if howmanyframe == 0:
+        if len(DFoFmovieP) == 1:
+            imgdict['dFoFfil'] = DFoFmovieP[0]  # avoid over flattening
+        else:
+            imgdict['dFoFfil'] = np.dstack(DFoFmovieP)
+
+    # common stuff
+    imgdict['data_path'] = data_path
+    imgdict['durpre'] = durpre
+    imgdict['durres'] = durres
+    imgdict['fastLoad'] = fastLoad
+    imgdict['uniquekey'] = unique_planes
+    imgdict['F'] = np.dstack(F_P)
+    imgdict['F_ref'] = np.dstack(F_refP) # new!
+    imgdict['anatomy'] = np.dstack(anatomyP)
+    imgdict['dFoFavg'] = np.dstack(resmapP)
+    if resmap_travgP:
+        imgdict['avg_F'] = np.dstack(F_travgP)
+        imgdict['avg_odormaps'] = np.dstack(resmap_travgP)
+        imgdict['avg_odormap odornames'] = stimnames_travgP
+    if need_AvgTr:
+        imgdict['avg projection'] = np.dstack(AvgProj)
+    if need_MaxPr:
+        imgdict['max projection'] = np.dstack(MaxProj)
+    
+    if len(FoffsetP)>1:
+        Foffsets = np.vstack(FoffsetP)
+    else:
+        Foffsets = FoffsetP[0]
+    if FoffsetP:
+        imgdict['Foffset'] = Foffsets
+    else:
+        imgdict['Foffset'] = 0
+    imgdict['margin'] = margin_dict
+
+    if verbose:
+        _sizeof = np.sum([ele.nbytes for ele in imgdict.values() if type(ele) == np.ndarray])
+        print '\nAbout %2.2f s to load. %2.3f MB' % (time.time() - t0, _sizeof/1024.0/1024.0)
+
+    return imgdict, sorted_tag
+
 if __name__ == "__main__":
     app = wx.App(0)
     fishicon = wx.Icon(os.path.join('resources','fish2.ico'), wx.BITMAP_TYPE_ICO)
@@ -5177,3 +5632,8 @@ if __name__ == "__main__":
     Pymagor2 = MainFrame(None, -1)
     Pymagor2.Show(True)
     app.MainLoop()
+
+
+
+
+
