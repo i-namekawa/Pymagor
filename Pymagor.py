@@ -24,21 +24,8 @@
 ##  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 ##  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-# major changes
-# major bug: within trial alignment is not reflected in dF/F trace for indivisual file
-# major bug: trial alignment offset not reflected to average response
-# refactor the MESS around image file loading (pack function and its many friends)
-# abort btn was not working. fixed.
-
-# minor changes
-# remove dependency on win32process, yapsy will stay
-# check if the platform is windows when creating avi with ffmpeg.exe.
-# update avi creation code for PIL/pillow API changes
-# in PDF export a new page with a large anatomy image with ROIs overlaid
-# put during stim period and Fnoise into offset file.
-# use ini file to store colormap in use
-
-# TODO: MATLAB generated color tiff support is broken but maybe no one needs this. Let's drop it
+# fixed: MATLAB generated color tiff support is broken
+# added: Test code generate_toy_data.py to assert dF/F calculation and alignments
 
 # STANDARD libraries
 from __future__ import with_statement, division
@@ -169,10 +156,7 @@ else:
     pickle_stacked = False
     verbose = False
     fit2Toolbar_width = True
-    if myOS == 'Linux':
-        lastdir = os.path.expanduser('~')
-    else:
-        lastdir = 'C:\\'
+    lastdir = os.path.expanduser('~')
     npz = False
     mat_compress = True
     selectiveWeightedAvgFilter = True
@@ -194,6 +178,7 @@ Overlay = False
 cutoff = -cmin
 cutoffON = False
 SDthrs = False
+corr2d = corr.fast_corr
 
 working_singles, need_abort_singles = False, False
 working, need_abort = False, False
@@ -400,7 +385,7 @@ class trial2(wx.Frame):
     def __init__(self, parent, id, imgdict, tag, lock=False):
 
         wx.Frame.__init__(self, parent, id, '', style=wx.DEFAULT_FRAME_STYLE)
-        self.SetIcon(fishicon)
+        self.SetIcon(wx.Icon(os.path.join('resources','fish2.ico'), wx.BITMAP_TYPE_ICO))
         self.DispSize = wx.GetDisplaySize()
 
         self.parent = parent
@@ -667,7 +652,6 @@ class trial2(wx.Frame):
         self.changetitle()
         self.Iconize(False)
 
-
     def OnRecalc(self, event):
 
         togglestate = self.recalc.GetValue()
@@ -680,7 +664,6 @@ class trial2(wx.Frame):
 
             if 'dFoFfil' in self.imgdict.keys():
                 print 'dFoFfil found'
-
 
     def OnROImngr(self, event):
 
@@ -706,7 +689,6 @@ class trial2(wx.Frame):
                 del self.ROImngrframe
         elif not self.ROI.data and togglestate:
             self.ROImngr.SetValue(False)
-
 
     def loadROI(self, fp):
 
@@ -798,7 +780,6 @@ class trial2(wx.Frame):
             self.ROI.add(roipoly, z=roiz, category=roi_ctgr)
         else:
             self.ROI = ROI(roipoly, z=roiz, category=roi_ctgr)
-
 
     # GENERAL METHODS
     def assure_box(self, end_x, end_y):
@@ -1407,7 +1388,6 @@ class trial2(wx.Frame):
 
         self.Refresh()
 
-
     # CONTEXT MENU
     def OnCtxMenu(self, event):
 
@@ -1634,7 +1614,6 @@ class trial2(wx.Frame):
                 if dlg.ShowModal() == wx.ID_OK:
 
                     avi_fp = dlg.GetPath()
-
                     cmdstring = ('resources/ffmpeg.exe',
                                 '-y',
                                 '-qscale', qscale,  # 1 best quality (variable bit rate). no noticiable change at 5 half the file size
@@ -1672,7 +1651,6 @@ class trial2(wx.Frame):
                     print 'caneled'
             else:
                 print 'caneled'
-
 
     def OnCtxClearROIs(self, event):
         self.ROI = ROI()
@@ -1892,7 +1870,6 @@ class trial2(wx.Frame):
         subplot1.set_ylim( 0, int(a.max()) )
         figure.show()
 
-
     def OnQuickPlot(self, event):
 
         if self.ROI.data == []:
@@ -1960,7 +1937,6 @@ class trial2(wx.Frame):
         plt.tight_layout()
         figure.show()
 
-
         if verbose:
             if npz: # numpy friendly output
                 pprint (dFoF.T)
@@ -1976,7 +1952,6 @@ class trial2(wx.Frame):
         if z is False:
             z = self.changetitle(wantz=True) # get current plane
         
-
         masks = []
         ROIfound = []
         for n, poly in enumerate(self.ROI.data):
@@ -2005,7 +1980,6 @@ class trial2(wx.Frame):
             return dFoFtraces, ROIfound
         else:
             return None, None
-
 
     def export(self, event):
 
@@ -2052,9 +2026,7 @@ class trial2(wx.Frame):
         # generating PDF means the user like the current parameters. Let's update durpre, durres, Fnoise 
         # settings stored in offset file, by calling this with None to img arg
         Fnoise = self.parent.ParamsPane.sc_Fnoise.GetValue()
-        print Fnoise
         get_offset_within_trial_img(None, data_path, 'dummy', durpre, margin, (SpatMed, SpatMed2), Fnoise)
-
 
     def PDF(self, fname, data_path):
         " generate a PDF report "
@@ -2065,7 +2037,7 @@ class trial2(wx.Frame):
         ncol = np.ceil(np.sqrt(nfiles))
         nrow = np.ceil(nfiles/ncol)
         Fnoise = self.parent.ParamsPane.sc_Fnoise.GetValue()
-        _figsize = [9.9,7] # A4 paper aspect ratio of sqrt(2)
+        _figsize = [11.693, 8.267] # A4 paper size
         colors = ('b', 'g', 'r', 'c', 'm', 'y')
         
 
@@ -2169,7 +2141,7 @@ class trial2(wx.Frame):
             bmp = gray2clut2b(self.imgdict['dFoFavg'][::-1,:,ind].copy(), cmin, cmax)
             myimshow(eachtrial, subplot2, bmp, os.path.basename(fp))
 
-            
+           
             found_ROIs = []
             fontsize = int(min_fontsize+(30-nfiles)/30)-(len(title)>25)
             
@@ -2181,7 +2153,6 @@ class trial2(wx.Frame):
                     subplot1.add_patch(Polygon(roi, edgecolor=color, closed=True, fill=False))
                     subplot2.add_patch(Polygon(roi, edgecolor=color, closed=True, fill=False))
                     x, y = np.median(np.array(roi), axis=0)
-                    # subplot1.text(x*1.15+self.w, y, str(ind2+1), color=color, fontsize=fontsize)
 
             dFoFtracesPool.append([dFoFtraces, z, found_ROIs])
             rawtracesPool.append([rawtraces, z, found_ROIs])
@@ -2316,7 +2287,6 @@ class trial2(wx.Frame):
                                     Foffsets=Foffset,
                                     wantsraw=False )
 
-
             avgdFoF_acrosstrials.append( dFoFmap )
             avgF_acrosstrials.append( F )
             names4avgdFoF_acrosstrials.append( (z,odor) )
@@ -2367,7 +2337,6 @@ class trial2(wx.Frame):
                     #avgtraces.Show(True)
                     avg_trace_fig.show()
 
-
         txt='Pymagor v%s (rev %s)\ndurpre = [%d, %d], durres = [%d, %d]\nBackground noise offset= %d;margin ' % (release_version,__version__, durpre[0],durpre[1],durres[0],durres[1], Fnoise)
         txt += ', '.join([': '.join((key,str(item))) for key,item in self.imgdict['margin'].items()])
         cllg2.annotate(txt, (0,0), xytext=(0.03, 0.03), textcoords='figure fraction', fontsize=7)
@@ -2382,7 +2351,6 @@ class trial2(wx.Frame):
 
         return dFoFtracesPool, rawtracesPool, avgdFoF_acrosstrials, \
             avgF_acrosstrials, names4avgdFoF_acrosstrials, avg_tracesP
-
 
     def savemat(self, fname, Pooled):
         """ saving into mat file """
@@ -2414,7 +2382,6 @@ class trial2(wx.Frame):
         dFoFtracesCell = np.zeros( (len(uniq_z), 4), dtype=np.object )
         rawtracesCell = np.zeros( (len(uniq_z),  4), dtype=np.object )
         avg_tracesCell = np.zeros( (len(uniq_z), 4), dtype=np.object )
-
 
         for n, zz in enumerate(uniq_z):
             dFoFtemp = [d for d,z,r in dFoFtracesPool if z == zz and d is not None]
@@ -2500,7 +2467,6 @@ class trial2(wx.Frame):
             fname = fname[:-3]+'mat'
             sio.savemat(fname, {sname : dct}, oned_as='row', do_compression=mat_compress)
         print 'successfully saved as '+fname
-    
 
     def validate_sname(self, name):
 
@@ -2509,9 +2475,7 @@ class trial2(wx.Frame):
         else:
             return 'pymg'+name.replace('-','_').replace(' ','_')
 
-
     # EVENTS
-
     def OnQuit(self, event):
         self.abortEvent.set()
         self.Destroy()
@@ -3048,7 +3012,7 @@ class MainFrame(wx.Frame):
         style = wx.DEFAULT_FRAME_STYLE | wx.NO_FULL_REPAINT_ON_RESIZE
         wx.Frame.__init__(self, parent, id, title, size=size, style=style)
 
-        self.SetIcon(fishicon)
+        self.SetIcon(wx.Icon(os.path.join('resources','fish2.ico'), wx.BITMAP_TYPE_ICO))
         self.Bind(wx.EVT_SIZE, self.OnSize)
 
         ## AUI Manager
@@ -3092,7 +3056,6 @@ class MainFrame(wx.Frame):
         if verbose:
             print 'Running on %s' % sys.version
             print ini_log
-
 
         # ParamsPane
         self.ParamsPane = ParamsPanel(self)
@@ -3401,7 +3364,6 @@ class MainFrame(wx.Frame):
             else:
                 self.showmessage('Pymagor couldn''t recognize the file.\nAvoid special characters like camma dot etc in the file name' )
 
-
     def refresh_sheet(self, event, focuson=None):
 
         self.sheet.DeleteAllItems()
@@ -3448,7 +3410,6 @@ class MainFrame(wx.Frame):
         elif hasattr(self, 'currentItem'): # no items remain in the sheet.
             del self.currentItem
 
-
     def PrepareTrial2(self, tags=[], all_frame=0, AvgTr=False, MaxPr=False, lock=False):
 
         # all_frame [0: all, 1: F and dur, 2: first frame]
@@ -3477,7 +3438,6 @@ class MainFrame(wx.Frame):
                            wx.OK | wx.ICON_INFORMATION )
         dlg.ShowModal()
         dlg.Destroy()
-
 
     ## Event handlars
     # File
@@ -3540,7 +3500,6 @@ class MainFrame(wx.Frame):
 
         if bringfocus:
             app.SetTopWindow(bringfocus)
-
 
     def OnShowConsole(self, event):
         #crustFrame = wx.py.crust.CrustFrame(parent = self)
@@ -3845,7 +3804,7 @@ class MainFrame(wx.Frame):
         _id = event.GetId()
         if _id == 301:
             info = wx.AboutDialogInfo()
-            info.SetIcon(fishicon)
+            info.SetIcon(wx.Icon(os.path.join('resources','fish2.ico'), wx.BITMAP_TYPE_ICO))
             info.Name = 'Pymagor%s' % release_version
             info.Version = 'rev%s' % __version__
             info.Copyright = '(C) 2011- Iori Namekawa'
@@ -4837,8 +4796,7 @@ class BatchLauncher(wx.Panel):
             print 'Aborting...'
 
 
-# Global function
-
+# Global functions
 def loadmat(fp):
     data = sio.loadmat(fp)
     ind = [key.startswith('pymg') for key in data.keys()].index(True)
@@ -4856,7 +4814,6 @@ def gray2clut2b(img, cmin, cmax):
     img = ((img-cmin) * 255.0 / (cmax-cmin)).astype(np.uint8)
     
     return cmap[img]
-
 
 def path_check(fullpath, verbose=True):
     
@@ -4898,7 +4855,6 @@ def Shift(ImgP, Foffset, padding=True):
         else:
             return ImgP
 
-
 def pad_imgseq(img):
     '''
     img : frames by height by width array of image sequence
@@ -4939,7 +4895,6 @@ def pad_img(img):
 
     return padded
 
-
 def _applymask(img, maxShift):
     
     if maxShift: # [maxShift:-maxShift] indexing would not work if maxShift = 0
@@ -4957,7 +4912,6 @@ def _applymask(img, maxShift):
     
     return img
 
-
 def shiftmask(mask, (yoff,xoff)):
     
     # Foffset: yoff, xoff, correlation, ind
@@ -4973,7 +4927,6 @@ def shiftmask(mask, (yoff,xoff)):
         return shifted
     else:
         return mask
-
 
 def getdFoFtraces(img, durpre, masks, raw=False, baseline=False, offset=None, needflip=True, Fnoise=0):
     
@@ -5006,7 +4959,6 @@ def getdFoFtraces(img, durpre, masks, raw=False, baseline=False, offset=None, ne
     
     return waves
 
-
 def getmask(poly, (h,w)): # nx is depreciated after matplotlib 1.2.0
     poly = np.array(poly)
     ymax = int(np.ceil(poly[:,1].max()))
@@ -5028,7 +4980,6 @@ def getmask(poly, (h,w)): # nx is depreciated after matplotlib 1.2.0
        Path(poly).contains_points(xypoints).reshape(ymax+1-ymin, xmax+1-xmin)
     
     return mask
-
 
 def get_offset_within_trial_img(img, data_folder, fname, durpre, margin, SpaMeds, Fnoise):
     '''normaly retrive or compute within trial frame alignment offset data but when None is 
@@ -5068,7 +5019,6 @@ def get_offset_within_trial_img(img, data_folder, fname, durpre, margin, SpaMeds
                             'LastFnoise': LastFnoise    }, f, protocol=2)
         return None
 
-
 def get_saved_offsets(data_folder):
     fname = os.path.basename(data_folder)+'.offset'
     fp_offset = os.path.join(data_folder, fname)
@@ -5091,7 +5041,6 @@ def get_saved_offsets(data_folder):
         LastFnoise = None
     
     return fp_offset, offset_dict, Lastdurres, LastFnoise
-
 
 def show_offsetinfo(fp_offset, offset_dict, Lastdurres, LastFnoise):
     
@@ -5116,7 +5065,6 @@ def _shift_a_frame(img, (yoff, xoff)):
     img = np.roll(img, int(-xoff), axis=1)
     return img
 
-
 def checkdurs(fp, parent=None):
     
     img_info = get_tags(fp)
@@ -5135,7 +5083,6 @@ def checkdurs(fp, parent=None):
 
     return tuple(_durpre), tuple(_durres), nframes, nch
 
-
 def path2img(data_path, tag):
     ''' Get the full path to the image data. '''
     # print 'path2img : ', len(tag), tag, data_path
@@ -5151,7 +5098,6 @@ def path2img(data_path, tag):
 
     return os.path.join(data_path, tag[0])
 
-
 def pack2npobj(ROI, height=False):
     ' Prepare numpy obj to be saved as matlab cell '
 
@@ -5166,15 +5112,12 @@ def pack2npobj(ROI, height=False):
 
     return matpoly, matplane, matctgr
 
-
 def versiontuple(v):
     return tuple([int(vv) if len(vv)==1 else int(vv[0])  for vv in v.split(".") ])
-
 
 def getIndicesInWhole(part, whole):
     'compare two different size vectors and return the indices of part elements in whole'
     return [np.argmax(whole == element) for element in part]
-
 
 def ComputeThisPlane(data_path, tags, howmanyframe, need_AvgTr, need_MaxPr, anatomy_method, 
         Fnoise, fastLoad, verbose, durpre, durres, ch, ref_ch, reftr=None, margin=9, 
@@ -5450,8 +5393,7 @@ def ComputeThisPlane(data_path, tags, howmanyframe, need_AvgTr, need_MaxPr, anat
         h,w = resmap_travgP[0].shape
         resmap_travgP = resmap_travgP[0].reshape(h,w,1) # dig out from the list
         F_travgP = F_travgP[0].reshape(h,w,1)
-    
-    
+      
     resmap_travgP = _applymask(resmap_travgP, margin4dict) # removing filtering artifacts.
     F_travgP = _applymask(F_travgP, margin4dict)
 
@@ -5625,15 +5567,9 @@ def pack(data_path, tags, howmanyframe, need_AvgTr, need_MaxPr, anatomy_method,
 
     return imgdict, sorted_tag
 
+
 if __name__ == "__main__":
     app = wx.App(0)
-    fishicon = wx.Icon(os.path.join('resources','fish2.ico'), wx.BITMAP_TYPE_ICO)
-    ## for wx.Icon, wx.App object must be created first!
     Pymagor2 = MainFrame(None, -1)
     Pymagor2.Show(True)
     app.MainLoop()
-
-
-
-
-
