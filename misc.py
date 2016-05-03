@@ -59,9 +59,9 @@ def path_check(fullpath, verbose=True):
     except ValueError:
         return None
 
-def Shift(ImgP, Foffset):
+def Shift(ImgP, Foffset, padding=True):
     
-    maxShift = np.abs(Foffset[:,0:2]).max() # max shift
+    maxShift = int(np.abs(Foffset[:,0:2]).max()) # max shift
     if not maxShift:
         return ImgP
     else:
@@ -69,13 +69,18 @@ def Shift(ImgP, Foffset):
         
         for y,x,c,ind in Foffset: # [1:] # yoff, xoff, correlation, ind
             #print 'offset (y=%d, x=%d), corr=%f, index=%d' % (y,x,c,ind)
-            ImgP[:,:,ind] = np.roll(ImgP[:,:,ind], int(-y), axis=0)
-            ImgP[:,:,ind] = np.roll(ImgP[:,:,ind], int(-x), axis=1)
+            ind = int(ind)
+            if y: 
+                ImgP[:,:,ind] = np.roll(ImgP[:,:,ind], int(-y), axis=0)
+            if x:
+                ImgP[:,:,ind] = np.roll(ImgP[:,:,ind], int(-x), axis=1)
         
         # 0 padding the margin
-        ImgPshited[maxShift:-maxShift,maxShift:-maxShift,:] = ImgP[maxShift:-maxShift,maxShift:-maxShift,:]
-        
-        return ImgPshited
+        if padding:
+            ImgPshited[maxShift:-maxShift,maxShift:-maxShift,:] = ImgP[maxShift:-maxShift,maxShift:-maxShift,:]
+            return ImgPshited
+        else:
+            return ImgP
 
 
 def pad_imgseq(img):
@@ -119,158 +124,11 @@ def pad_img(img):
     return padded
 
 
-def average_odormaps(   
-                        data_path, 
-                        tags, 
-                        Foffsets, 
-                        Autoalign,
-                        durs, 
-                        margin, 
-                        SpatMeds,
-                        ch=0, 
-                        ref_ch=None, 
-                        needF=False, 
-                        ROIpoly_n=False, 
-                        dtype=np.uint16, 
-                        raw=False,
-                        Fnoise=0
-                    ):
-    '''
-    Follow Rainer's way of getting average odor map:
-      For each odor-plane combination, get the most acurate F (RF_F) 
-      by averaging raw frames over frames and across trials and 
-      use this common F for all trials.
-    
-    tags    : a list containing files from one plane only and already in a desired order
-    Foffsets: a numpy arrary matching to tags
-    ch      : channel for multi channel recording
-    needF   : Flag to get average F instead of odormap
-    ROIpoly_n: a tupple of (list of ROI polygons, list of cell numbers). flag to return dF/F traces instead of image
-    raw     : when ROIpoly_n is not False, return raw pixel values instead of dF/F value
-    Fnoise  : a constant to subtract from pixel values for dark/read noise from PMD
-    '''
-    
-    if len(tags[0])>10:                                     # Pymagor v2.0 or later
-        ver = 2
-    elif len(tags[0]) in [5, 6] and os.path.exists(tags[0][-1]): # from online analysis
-        ver = 2
-    else:                                                   # Pymagor v1.0
-        ver = 1
-    durpre, durres = durs
-    prest, preend = durpre
-    resst, resend = durres
-    if not ref_ch:
-        ref_ch = ch
-    # remove all the duplicates while preserving the order
-    # http://stackoverflow.com/questions/480214/how-do-you-remove-duplicates-from-a-list-in-python-whilst-preserving-order
-    seen = set()  # empty set object
-    odors = [x for x in ([dd[2] for dd in tags])
-              if x not in seen and not seen.add(x)]
-    if type(Foffsets) is list:
-        Foffsets = np.array(Foffsets)
-    maxShift = np.abs(Foffsets[:,:2]).max() # max shift
-    
-    odormaps = []
-    RF_F = []
-    
-    for odor in odors:
-
-        if ver == 2:
-
-            file_path = [( dd[0], path_check(dd[-1]) ) for dd in tags if dd[2] == odor]
-        else:
-            file_path = [( dd[0], path_check(data_path) ) for dd in tags if dd[2] == odor]
-        
-        temp = None
-        withinoffmax = []
-        # looping trials
-        for n, ((fname, fpath), (yoff, xoff, r, nn)) in enumerate(zip(file_path, Foffsets.tolist())): 
-            fp = os.path.join(fpath, fname)
-            # by definition 'anatomy view' requires averaging all the frames... this should be cached in file
-            img = opentif(fp, ch=ch, dtype=dtype, filt=None, skip=False) - Fnoise
-            
-            if Autoalign:
-                within_offsets = get_offset_within_trial(fp, ref_ch, durpre, margin, SpatMeds)
-                img = Shift(img, within_offsets)
-                withinoffmax.append( np.abs(within_offsets[:,:2]).max() )
-            
-            if yoff: img = np.roll(img, int(-yoff), axis=0)
-            if xoff: img = np.roll(img, int(-xoff), axis=1)
-            
-            if temp is None:
-                temp = np.zeros(img.shape, dtype=np.float64)
-            else: # align across trials
-                sofar = _applymask(temp.mean(axis=2), maxShift)
-                new = _applymask(img.mean(axis=2), maxShift)
-                Foffset = corr.fast_corr(np.dstack((sofar, new)), margin=margin, dur=0, SpaMed=SpatMeds)
-                yoff = int(Foffset[1,0])
-                xoff = int(Foffset[1,1])
-                if yoff: img = np.roll(img, -yoff, axis=0)
-                if xoff: img = np.roll(img, -xoff, axis=1)
-            
-            temp += img
-        
-        h, w, nframes = img.shape
-        rawimg = temp / (n+1)
-        
-        if ROIpoly_n:  # export will call this for every (field-of-view, odor) pair. better pack outside
-        # no need to shift ROIs because ROIs cordinates are on ref tr.
-        # when ROIpoly_n true, we are doing this for only one odor. no need to append
-            roipolys, cellnumbers = ROIpoly_n
-            masks = []
-            for roi in roipolys:
-                masks.append(getmask(roi,(h,w)))
-                rawimg = _applymask(rawimg, maxShift)
-            
-            waves = getdFoFtraces(rawimg, durpre, masks, 
-                    raw=raw, baseline=False, offset=None, needflip=True) # Fnoise is taken care of
-            
-            odormaps.append(waves)
-            
-        else:   # this is the part that produces odor maps!
-            F = rawimg[:,:,prest:preend+1].mean(axis=2)
-            RF_F.append(_applymask(F.copy(), maxShift))
-            
-            #if needF:
-                #odormaps.append(_applymask(F, maxShift))
-            #else:  # odor maps
-            if len(F[F==0])>0:
-                F[F==0] = F[F.nonzero()].min()
-            
-            FF = np.tile(F[:,:,np.newaxis], (1,1,durres[1]-durres[0]+1))
-            dFoF = rawimg[:,:,resst:resend+1]
-            dFoF -= FF  # in-place operation is faster
-            dFoF /= FF
-            dFoF *= 100.0
-            odormap = ndimage.filters.convolve(
-                        dFoF.mean(axis=2), kernel, mode='nearest'
-                        ).astype(np.float32)
-            odormaps.append(odormap)
-    
-    if ROIpoly_n:
-        traces = odormaps[0]
-        return traces, odors
-    
-    #if withinoffmax:
-        #maxShift = max(maxShift, np.max(withinoffmax))
-    
-    if len(odormaps)>1:
-        odormaps = np.dstack(odormaps)
-        RF_F = np.dstack(RF_F)
-    else:
-        odormaps = odormaps[0].reshape(h,w,1) # dig out from the list
-        RF_F = RF_F[0].reshape(h,w,1)
-    
-    odormaps = _applymask(odormaps, maxShift)
-    RF_F = _applymask(RF_F, maxShift)
-    
-    return RF_F, odormaps, odors
-
-
 def _applymask(img, maxShift):
     
     if maxShift: # [maxShift:-maxShift] indexing would not work if maxShift = 0
         mask = np.zeros((img.shape), dtype=np.bool)
+        maxShift = int(maxShift)
         if len(mask.shape) == 3:
             mask[maxShift:-maxShift,maxShift:-maxShift,:] = True
         elif len(mask.shape) == 2:
@@ -335,11 +193,10 @@ def getdFoFtraces(img, durpre, masks, raw=False, baseline=False, offset=None, ne
 
 def getmask(poly, (h,w)): # nx is depreciated after matplotlib 1.2.0
     poly = np.array(poly)
-    ymax = np.ceil(poly[:,1].max())
-    xmax = np.ceil(poly[:,0].max())
-    ymin = np.floor(poly[:,1].min())
-    xmin = np.floor(poly[:,0].min())
-    
+    ymax = int(np.ceil(poly[:,1].max()))
+    xmax = int(np.ceil(poly[:,0].max()))
+    ymin = int(np.floor(poly[:,1].min()))
+    xmin = int(np.floor(poly[:,0].min()))
     # sanity check for ymin, ymax, xmin, xmax
     if ymin<0: ymin = 0
     if xmin<0: xmin = 0
@@ -399,32 +256,32 @@ def get_saved_offsets(data_folder):
 def show_offsetinfo(fp_offset, offset_dict):
     
     print 'Offset file: ', fp_offset
-    _keys = offset_dict.keys()
-    fnames = [_fname for _fname,_,_,_ in _keys]
-    durpres = [str(_pre) for _,_,_pre,_ in _keys]
-    for k in [_keys[_n] for _n in np.lexsort((fnames, durpres))]:
-        print '\t%s\t\tRef ch=%d\t\tPre-stimulus frame range=%s\t\tSpatial filters=%s' % k
+    for k in sorted(offset_dict.keys()):
+        message = '\t%s\t\tRef ch=%d\t\tPre-stimulus frame range=%s\t\tSpatial filters=%s' % k[:4]
+        if len(k) == 5:
+            message += '\tmargin=%d' % k[4]
+        print message
 
 
-if __name__ == '__main__':
+# if __name__ == '__main__':
     
-    data_path = r'.\testdata'
-    tags = [['test50to100.tif', 'z0','testpulse','1',''],
-            ['test50to100_shift x5 y-9.tif', 'z0','testpulse','2','']]
-    offsets = np.array([[ 0,  0,  1,  0],
-                        [ 5,  9,  1,  1]])
-    Autoalign = False
-    durs = ( [1, 8], [12, 25] )
-    margin = 25
-    SpatMeds = True
-    RF_F, odormaps, odors = average_odormaps(data_path, tags, offsets, Autoalign, durs, margin, SpatMeds, ch=0)
-    print odormaps.shape
-    print odormaps.max()
+#     data_path = r'.\testdata'
+#     tags = [['test50to100.tif', 'z0','testpulse','1',''],
+#             ['test50to100_shift x5 y-9.tif', 'z0','testpulse','2','']]
+#     offsets = np.array([[ 0,  0,  1,  0],
+#                         [ 5,  9,  1,  1]])
+#     Autoalign = False
+#     durs = ( [1, 8], [12, 25] )
+#     margin = 25
+#     SpatMeds = True
+    # RF_F, odormaps, odors = average_odormaps(data_path, tags, offsets, Autoalign, durs, margin, SpatMeds, ch=0)
+    # print odormaps.shape
+    # print odormaps.max()
     
-    ROIpoly_n = ([[(11, 125), (11, 135), (21, 135), (21, 135), (21, 125)]], [0])
-    waves = average_odormaps(data_path, tags, offsets, Autoalign, durs, margin, SpatMeds, ch=0, ROIpoly_n=ROIpoly_n)
-    print waves
+    # ROIpoly_n = ([[(11, 125), (11, 135), (21, 135), (21, 135), (21, 125)]], [0])
+    # waves = average_odormaps(data_path, tags, offsets, Autoalign, durs, margin, SpatMeds, ch=0, ROIpoly_n=ROIpoly_n)
+    # print waves
     
-    RF_F, odormaps, odors = average_odormaps(data_path, tags, offsets, Autoalign, durs, margin, SpatMeds, ch=0, needF=True)
-    print RF_F.shape
-    print RF_F.max()
+    # RF_F, odormaps, odors = average_odormaps(data_path, tags, offsets, Autoalign, durs, margin, SpatMeds, ch=0, needF=True)
+    # print RF_F.shape
+    # print RF_F.max()

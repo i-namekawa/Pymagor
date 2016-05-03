@@ -13,7 +13,6 @@ import wx.grid as gridlib
 import wx.lib.gridmovers as gridmovers
 
 import ROI
-from misc import average_odormaps
 
 defaultCategory = ["Cell", "Neuropil", "Beads"]
 
@@ -330,17 +329,30 @@ class ROImanager(wx.Frame):
             data_path = parent.imgdict['data_path']
             Foffset = np.array(Foffset)
             Foffset[:,0] = -Foffset[:,0] # flix y-axis for shift function
-            dFoF, odornames = average_odormaps(data_path, 
-                                                tags, 
-                                                Foffset, 
-                                                Autoalign, 
-                                                durs, 
-                                                margin, 
-                                                (SpatMed, SpatMed2),
-                                                ch=ch, 
-                                                ROIpoly_n=(ROIpolys, ROIfound), 
-                                                raw=raw,
-                                                Fnoise=Fnoise)
+
+            dFoF = ComputeThisPlane(
+                                    data_path=data_path, 
+                                    tags=tags, 
+                                    # most are dummy when ROIpoly_n is provided
+                                    howmanyframe=0,
+                                    need_AvgTr=False, 
+                                    need_MaxPr=False,
+                                    anatomy_method=False,
+                                    Fnoise=Fnoise, # !important
+                                    fastLoad=False,
+                                    verbose=verbose, # !important
+                                    durpre=durpre, # !important
+                                    durres=durres, # !important
+                                    ch=ch,         # !important
+                                    ref_ch=ref_ch, 
+                                    reftr=None,
+                                    margin=margin,
+                                    # these 3 ask for dF/F or raw traces for ROIs
+                                    ROIpoly_n=(ROIpolys, ROIfound),
+                                    Foffsets=Foffset,
+                                    wantsraw=raw )            
+
+            
         else:
             dFoF, ROIfound = parent.getdFoF(fp, dtype=np.uint16, offset=Foffset, raw=raw)
         
