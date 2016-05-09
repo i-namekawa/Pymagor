@@ -3,7 +3,10 @@ import os
 # PIL
 from PIL import Image # it's pillow
 from PIL import TiffImagePlugin
-from PIL import iorImagePlugin  # ior is our internal video format on Imagor3 (written in IgorPro).
+try: # (optional) ior is our internal video format on Imagor3 (written in IgorPro)
+    from PIL import iorImagePlugin
+except:
+    iorImagePlugin == None
 
 import numpy as np
 
@@ -134,17 +137,8 @@ def get_tags(fp):
         return
     
     img_info = dict()
-    float_keys = [ # ver 3.6-3.8
-            'state.acq.frameRate',
-            'state.acq.scanAmplitudeX',
-            'state.acq.scanAmplitudeY',
-            'state.motor.absXPosition',
-            'state.motor.absYPosition',
-            'state.motor.absZPosition',
-            'state.motor.relXPosition',
-            'state.motor.relYPosition',
-            'state.motor.relZPosition'
-            ]
+    img_info['acqsoftware'] = acqsoftware
+
     
     if acqsoftware == 'ImageJ':
         img_info['nch'] = 1
@@ -188,6 +182,17 @@ def get_tags(fp):
         
     elif acqsoftware.startswith('scanimage'):
         
+        float_keys = [ # ver 3.6-3.8
+                'state.acq.frameRate',
+                'state.acq.scanAmplitudeX',
+                'state.acq.scanAmplitudeY',
+                'state.motor.absXPosition',
+                'state.motor.absYPosition',
+                'state.motor.absZPosition',
+                'state.motor.relXPosition',
+                'state.motor.relYPosition',
+                'state.motor.relZPosition'
+                ]
         if type(Metadata) != dict:
             raise(Exception("invalid scanimage tif"))
         
@@ -300,7 +305,7 @@ def get_tags(fp):
         
         for key in float_keys:
             img_info[key] = 'NA'
-        
+    
     return img_info
 
 count = 0
@@ -311,7 +316,7 @@ def opentif(fp,
             ch=0, 
             check8bit=False,
             nch=None,
-            nframes=None
+            nframes=None,
             ):
     '''
     fp      : file full path strings
@@ -334,7 +339,7 @@ def opentif(fp,
             nframes = img_info['nframes']
         if nch is None:
             nch = img_info['nch']
-    
+
     if ch+1 > nch:
         print 'channel%d not found in %s' % (ch, fp)
         if check8bit:
@@ -476,9 +481,9 @@ if __name__ == '__main__':
     
 
     # toy data by tifffile.TiffWriter.save
-    testdata.append(r'testdata\tifffilt.py\temp.tif')
-    testdata.append(r'testdata\tifffilt.py\temp2.tif')
-    testdata.append(r'testdata\tifffilt.py\temp3.tif')
+    testdata.append(r'testdata\tifffile\temp.tif')
+    testdata.append(r'testdata\tifffile\temp2.tif')
+    testdata.append(r'testdata\tifffile\temp3.tif')
 
     for fp in testdata:
         print fp

@@ -76,3 +76,15 @@ testdata/MicroManager/ThomasHeartMarkerFish_1/ThomasHeartMarkerFish_1_MMStack.om
 misc.py
 newpack.py
 newpack.py
+testdata/ScanImageBTestFiles/FromPeter/Test1_010_movie.tif
+testdata/testdata.offset
+testdata/tifffile/export_from_script.PDF
+testdata/tifffile/pymg_tifffile.pdf
+*.offset
+testdata/tifffile/pymg_tifffile_meta.npz
+testdata/tifffile/pymg_tifffile_ROIs.npz
+testdata/tifffile/pymg_tifffile_traces.npz
+testdata/tifffile/pymg_tifffile_projections.npz
+testdata/tifffile/pymg_tifffile_img_trailavg.npz
+testdata/tifffile/pymg_tifffile_img_eachtrial.npz
+testdata/ScanImageBTestFiles/FromPeter/Test1_022_zstack.tif

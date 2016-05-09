@@ -5,9 +5,9 @@ import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
 
-if not hasattr(sys, 'frozen'):
-    import wxversion
-    wxversion.select(('2.8'))
+# if not hasattr(sys, 'frozen'):
+#     import wxversion
+#     wxversion.select(('2.8'))
 import wx
 import wx.grid as gridlib
 import wx.lib.gridmovers as gridmovers

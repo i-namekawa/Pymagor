@@ -24,8 +24,11 @@
 ##  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 ##  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-# fixed: MATLAB generated color tiff support is broken
-# added: Test code generate_toy_data.py to assert dF/F calculation and alignments
+
+# experimental wxpython3.0.0.0 support. 
+
+# TODO: generate multi channel toy data and test alignment using different "Ref ch"
+
 
 # STANDARD libraries
 from __future__ import with_statement, division
@@ -66,10 +69,11 @@ if myOS in ('Windows', 'Linux'): # until I can update matplotlib on OS X Darwin.
 import xlrd  # reading excel
 import xlwt  # writing excel
 
-if not hasattr(sys, 'frozen'):
-    import wxversion
-    wxversion.select('2.8-msw-unicode')
+# if not hasattr(sys, 'frozen'):
+    # import wxversion
+    # wxversion.select('2.8-msw-unicode')
 import wx
+# print wx.__version__
 
 import wx.aui as AUI
 import wx.lib.agw.floatspin as FS
@@ -210,11 +214,11 @@ cmap = clut2b # default is copied to global var cmap
 # parula is MATLAB's new default colormap. data converted from https://github.com/BIDS/colormap/blob/master/parula.py
 parula_buffer = '5*\x865+\x8a5-\x8d5.\x9050\x9361\x9663\x9964\x9c66\x9f57\xa259\xa55;\xa95<\xac4>\xaf3?\xb22A\xb52C\xb90D\xbc/F\xbf-H\xc2+J\xc5)K\xc9&N\xcc#P\xcf R\xd2\x1cT\xd5\x18V\xd7\x14X\xda\x10[\xdc\r\\\xdd\n^\xde\x07`\xdf\x04b\xe0\x02c\xe0\x02d\xe0\x02f\xe1\x01g\xe1\x01h\xe0\x02i\xe0\x03k\xe0\x03l\xe0\x04m\xdf\x05n\xdf\x06o\xde\x07p\xde\x08q\xde\tr\xdd\x0bs\xdd\x0ct\xdc\ru\xdc\rv\xdb\x0ew\xdb\x0fx\xda\x10y\xd9\x10z\xd9\x11{\xd8\x12{\xd8\x12|\xd7\x12}\xd7\x13~\xd6\x13\x7f\xd6\x13\x80\xd5\x13\x81\xd5\x14\x82\xd4\x14\x83\xd4\x14\x84\xd3\x13\x85\xd3\x13\x87\xd3\x13\x88\xd2\x12\x89\xd2\x12\x8a\xd2\x11\x8b\xd2\x10\x8c\xd2\x10\x8e\xd2\x0f\x8f\xd2\x0e\x90\xd1\r\x92\xd1\x0c\x93\xd1\x0b\x94\xd1\n\x95\xd1\t\x96\xd1\x08\x98\xd1\x08\x99\xd0\x07\x9a\xd0\x07\x9b\xcf\x06\x9c\xcf\x06\x9d\xce\x06\x9e\xce\x06\x9f\xcd\x06\xa0\xcc\x06\xa1\xcc\x05\xa1\xcb\x05\xa2\xca\x05\xa3\xc9\x05\xa4\xc8\x05\xa5\xc8\x05\xa5\xc7\x05\xa6\xc6\x06\xa7\xc5\x06\xa7\xc4\x06\xa8\xc3\x06\xa9\xc2\x07\xa9\xc1\x08\xaa\xc0\x08\xab\xbe\t\xab\xbd\n\xac\xbc\x0c\xac\xbb\r\xad\xba\x0e\xae\xb9\x10\xae\xb8\x11\xaf\xb6\x13\xaf\xb5\x14\xb0\xb4\x16\xb1\xb3\x18\xb1\xb1\x1a\xb2\xb0\x1c\xb2\xaf\x1e\xb3\xae \xb3\xac"\xb4\xab$\xb4\xaa&\xb5\xa8(\xb5\xa7*\xb6\xa5,\xb6\xa4/\xb7\xa31\xb7\xa13\xb8\xa06\xb8\x9e8\xb9\x9d;\xb9\x9b=\xb9\x9a@\xba\x98C\xba\x97E\xbb\x95H\xbb\x94K\xbb\x92N\xbc\x91Q\xbc\x8fS\xbc\x8eV\xbd\x8cY\xbd\x8b\\\xbd\x89_\xbd\x88b\xbe\x86e\xbe\x85h\xbe\x84k\xbe\x82n\xbe\x81q\xbe\x80t\xbe~w\xbe}y\xbe||\xbf{\x7f\xbfz\x82\xbfx\x84\xbfw\x87\xbfv\x8a\xbeu\x8c\xbet\x8f\xbes\x91\xber\x94\xbeq\x96\xbep\x99\xbeo\x9b\xben\x9d\xbem\xa0\xbel\xa2\xbek\xa5\xbej\xa7\xbdi\xa9\xbdh\xab\xbdh\xae\xbdg\xb0\xbdf\xb2\xbde\xb4\xbdd\xb6\xbdc\xb9\xbcb\xbb\xbca\xbd\xbca\xbf\xbc`\xc1\xbc_\xc3\xbb^\xc5\xbb]\xc7\xbb\\\xca\xbb[\xcc\xbb[\xce\xbbZ\xd0\xbaY\xd2\xbaX\xd4\xbaW\xd6\xbaV\xd8\xbaU\xda\xbaU\xdc\xb9T\xde\xb9S\xe0\xb9R\xe2\xb9Q\xe4\xb9P\xe6\xb9O\xe8\xb9N\xea\xb9M\xec\xb9L\xee\xb9K\xf0\xb9J\xf2\xb9H\xf3\xb9G\xf5\xbaF\xf7\xbaD\xf8\xbaC\xfa\xbbA\xfb\xbc?\xfc\xbd>\xfd\xbe<\xfd\xbf;\xfe\xc19\xfe\xc28\xfe\xc36\xfe\xc55\xfe\xc64\xfd\xc72\xfd\xc81\xfd\xca0\xfc\xcb/\xfc\xcc.\xfb\xce-\xfb\xcf,\xfa\xd0+\xfa\xd1*\xf9\xd3)\xf8\xd4(\xf8\xd5\'\xf7\xd7&\xf7\xd8%\xf6\xda$\xf6\xdb#\xf5\xdc"\xf5\xde!\xf5\xdf \xf4\xe1\x1e\xf4\xe2\x1d\xf4\xe4\x1c\xf4\xe6\x1b\xf4\xe7\x1a\xf4\xe9\x19\xf4\xeb\x18\xf5\xed\x16\xf5\xee\x15\xf5\xf0\x14\xf6\xf2\x13\xf7\xf4\x11\xf7\xf6\x10\xf8\xf8\x0f\xf8\xfa\r'
 
+colormapOptions = {}
+colormapOptions['clut2b (custom)'] = clut2b
+colormapOptions['parula (MATLAB)'] = np.fromstring(parula_buffer, dtype=np.uint8).reshape((256,3))
+colormapOptions['jet (MATLAB)'] = (cm.jet(range(256))[:,:3]* 255).astype(np.uint8)
 if hasattr(cm, 'viridis'): # matplotlib 1.5 and above
-    colormapOptions = {}
-    colormapOptions['clut2b (custom)'] = clut2b
-    colormapOptions['parula (MATLAB)'] = np.fromstring(parula_buffer, dtype=np.uint8).reshape((256,3))
-    colormapOptions['jet (MATLAB)'] = (cm.jet(range(256))[:,:3]* 255).astype(np.uint8)
     colormapOptions['magma (matplotlib)'] = (cm.magma(range(256))[:,:3]* 255).astype(np.uint8)
     colormapOptions['inferno (matplotlib)'] = (cm.inferno(range(256))[:,:3]* 255).astype(np.uint8)
     colormapOptions['cubehelix (matplotlib)'] = (cm.cubehelix(range(256))[:,:3]* 255).astype(np.uint8)
@@ -984,7 +988,9 @@ class trial2(wx.Frame):
                                self.h * self.ScalingFactor ))
         self.refresh_buf()
 
-        sizer.Add(self.display, proportion=1, flag=wx.SHAPED|wx.EXPAND|wx.ALL, border=2)
+        # wx.SHAPED will cause wxpython 3.0 C++ assertion error http://trac.wxwidgets.org/ticket/3104
+        # sizer.Add(self.display, proportion=1, flag=wx.SHAPED|wx.EXPAND|wx.ALL, border=2)
+        sizer.Add(self.display, proportion=1, flag=wx.EXPAND|wx.ALL, border=2)
         self.SetSizer(sizer)
         self.mainsizer = sizer
 
@@ -5075,7 +5081,7 @@ def checkdurs(fp, parent=None):
         Pymagor2.showmessage(
         '%d is larger than the max frame number (%d) for %s\n' % 
         (max(max(durres, durpre)), nframes-1, fp) )
-        return None, None
+        return None, None, None, None
         # _durpre = [fr if fr < nframes-1 else nframes-1 for fr in durpre]
         # _durres = [fr if fr < nframes-1 else nframes-1 for fr in durres]
     else:
