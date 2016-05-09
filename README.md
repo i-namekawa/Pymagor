@@ -39,7 +39,7 @@ The 64-bit binary is possible to build but was too huge (>200 MB, due to numpy/s
   * matplotlib
   * xlrd
   * xlwt
-  * wx (v2.8.12.1)
+  * wx (v2.8.12.1 recommended. v3.0.0.0 seems ok as well)
   * yapsy
   * tifffile.py (ver 2016.4.13)
   * (optional and MS-Windows only) win32process
