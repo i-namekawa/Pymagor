@@ -12,52 +12,48 @@ For more details, check [the wiki documentation] (https://github.com/i-namekawa/
 
 Supported platforms
 ------
-Pymagor is built upon Python and cross-platform libraries, meaning that it will be relatively easy to support Linux and Mac.
-However, only Windows 7 will be supported. All libraries used in Pymagor are ready for 64-bit (except on Mac until I upgrade to wxPython3.0).
-* MS-Windows XP/7/8 ([Windows93](http://www.windows93.net/) not supported)
+Pymagor is built upon Python and cross-platform libraries (all 64-bit ready). Alghough the main target platform is Windows 7, Ubuntu and MacOSX (darwin) seem to work ok with some minor problems.
+* MS-Windows XP/7/8 (Win10? never tested)
 * (Ubuntu 14.04: It can run from source with some GTK warnings)
-* (Mac: It manages to run from source on Darwin but it needs some more GUI element adjustments. wxPython2.8 on Mac requires 32-bit Python. So, it's better to install a separate Python2.7 32-bit and install all the dependencies there.)
+* (Mac: It runs from source on Darwin with wxPython v3.0 but with some minor wxPython errors. 
 
 
 Installation
 ------
 
-### Recommended way for Windows (no Python required!)
+### Easy way to test Pymgaor on Windows (no Python required! but 32-bit version only)
 
-* Get the [Windows 32-bit binary installer](https://github.com/i-namekawa/Pymagor/releases) and follow the instructions in the installation wizard. Please __do not__ install in "Program files" folder as Pymagor needs the write access to produce an error log file in the same folder. You **do not** need Python to run Pymagor. It comes with an uninstaller. The binary "pymagor.exe" is flagged as LARGEADDRESSAWARE so that it goes over the 2GB memory allocation limit by Windows up to 4GB on 32-bit Python. So, the peformance of this binary is better than running the source on 32-bit python (unless python.exe is flagged too).
+* Get the [Windows 32-bit binary installer](https://github.com/i-namekawa/Pymagor/releases) and follow the instructions in the installation wizard. Please __do not__ install in "Program files" folder as Pymagor needs the write access to produce an error log file in the same folder. It comes with an uninstaller. The binary "pymagor.exe" is flagged as LARGEADDRESSAWARE so that it goes over the 2GB memory allocation limit by Windows on 32-bit Python. So, the peformance of this binary is better than running the source on 32-bit python (unless python.exe is flagged too).
 
-The 64-bit binary is possible to build but was too huge (>200 MB, due to numpy/scipy dlls). So, if you need 64-bit, you should run from source.
+The 64-bit binary is possible to build but was too huge (>200 MB, due to numpy/scipy dlls). For 64-bit, run from source.
 
-### Hard way (for development, on Linux/Mac, and to run on 64-bit Python)
+### Run from source (for development, on Linux/Mac, and to run on 64-bit Python)
 
-1. Install the latest Python 2.7 series. For Windows, Anaconda 64-bit Python 2.7 is recommended. (WinPython no longer recommended because the latest WinPython2.7 still uses numpy 1.9.3 but the latest tifffile.py needs numpy 1.10)
+1. Install the latest Python 2.7 series. Anaconda 64-bit Python 2.7 is recommended. WinPython is no longer recommended because the latest WinPython2.7 still uses numpy 1.9.3 but the latest tifffile.py needs numpy 1.10.
 
 2. Install all the dependencies (see below for Anaconda example)
   * pillow
   * numpy (1.10 or newer)
   * scipy (v0.12.0 or newer. For anaconda, 0.16.0 recommended due to scipy.io.loadmat bug in anaconda)
-  * matplotlib
+  * matplotlib (may need 1.4.* on Mac)
   * xlrd
   * xlwt
-  * wx (v2.8.12.1 recommended. v3.0.0.0 seems ok as well)
+  * wx (v2.8.12.1 recommended. But v3.0 and above also seem to work)
   * yapsy
-  * tifffile.py (ver 2016.4.13)
-  * (optional and MS-Windows only) win32process
+  * tifffile.py (ver 2016.4.13 or newer. pip will install a slightly older version which may have a problem)
 
-3.
-   Clone the git repogitory (https://github.com/i-namekawa/Pymagor.git) and run Pymagor2.py
+3. Clone the git repogitory (https://github.com/i-namekawa/Pymagor.git or download zip) and run Pymagor2.py. On MaxOS, run with `pythonw` rather than `python`.
 
 #### Conda command to set up Python 2.7.* (64-bit) for Pymagor
 
 * Install Miniconda (or full anaconda) for conda command line tool
 * `conda create -n pymagor_env python=2.7 xlrd xlwt matplotlib scipy=0.16.0 pillow`
 * `activate pymagor_env` (win) or `source activate pymagor_env` (Linux/Mac)
-* then install 4 more libralies as follows:
+* `conda install wxpython=3.0`.  If there are problems with v3.0, downgrade to v2.8 by the official binary installer from sourceforge (wxPython2.8-win64-unicode-2.8.12.1-py27.exe) and choose C:/Miniconda3/envs/pymagor_env/lib/site-packages.
+* then install 2 more libralies as follows:
  * yapsy: `pip install yapsy`
- * wxpython2.8: use the official exe installer from sourceforge (wxPython2.8-win64-unicode-2.8.12.1-py27.exe) and choose C:/Miniconda3/envs/pymagor_env/lib/site-packages
- * tifffile: `pip install tifffile-2016.4.13-cp27-cp27m-win_amd64.whl` (or newer) from Gohlke's site at http://www.lfd.uci.edu/~gohlke/pythonlibs/#vlfd
- * (optional) win32process: open an evelated CMD.exe (Right click -> Run as Admin). `activate pymagor_env` and then `pip install pywin32-220-cp27-none-win_amd64.whl` from Gohlke's site (http://www.lfd.uci.edu/~gohlke/pythonlibs/#pywin32) and `python.exe C:/Miniconda3/envs/pymagor_env/Scripts/pywin32_postinstall.py -install`
- 
+ * tifffile: `pip install tifffile-2016.4.13-cp27-cp27m-win_amd64.whl` (or newer) from Gohlke's site at http://www.lfd.uci.edu/~gohlke/pythonlibs/#vlfd Or, simply copy tifffile.py to `site-packages`. Compilation of tifffile.c is optional but recommended for compressed tif.
+
 
 Bug report
 -------
