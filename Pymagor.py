@@ -329,7 +329,8 @@ class canvaspanel(wx.Panel):
         dc.SetBrush(wx.Brush(wx.RED, wx.TRANSPARENT))
 
         x1, y1, x2, y2 = parent.zoomrect
-        if (x2-x1) * (y2-y1) < parent.h*parent.w/4:  # if zoomed more than 4x
+        # if zoomed more than 4x, draw a dot at a pixcel in focus
+        if (x2-x1) * (y2-y1) < parent.h*parent.w/4:  
             dc.SetPen(wx.Pen(wx.NamedColour('green'), 1))
             x,y = normxy2dc(parent.curx, parent.cury)
             dc.DrawPoint(x,y)
@@ -369,7 +370,12 @@ class canvaspanel(wx.Panel):
             for n, roi in enumerate(parent.ROI.data):
                 if parent.ROI.z[n] == z: # matching z-plane for this ROI?
 
-                    data = [normxy2dc(x,y) for x,y in roi]
+                    if parent.dragging:
+                        offsetx, offsety = parent.boarder_check()
+                        data = [normxy2dc(x-offsetx,y-offsety) for x,y in roi]
+                    else:                        
+                        data = [normxy2dc(x,y) for x,y in roi]
+                    
                     if (not parent.drawing or parent.ROIoutlines):
                         #Change this line to change the color and thickness of the ROI!!!
                         dc.SetPen(wx.Pen(wx.NamedColour('red'), 3))
