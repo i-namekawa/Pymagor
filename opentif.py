@@ -3,14 +3,15 @@ import os
 # PIL
 from PIL import Image # it's pillow
 from PIL import TiffImagePlugin
-try: # (optional) ior is our internal video format on Imagor3 (written in IgorPro)
+try: # (optional) ior is our internal video format used by Imagor3 (written in IgorPro)
     from PIL import iorImagePlugin
 except:
-    iorImagePlugin == None
+    iorImagePlugin = None
 
 import numpy as np
 
 import tifffile
+
 
 
 def _count_frames(im):
@@ -138,7 +139,18 @@ def get_tags(fp):
     
     img_info = dict()
     img_info['acqsoftware'] = acqsoftware
-
+    
+    float_keys = [ # ver 3.6-3.8
+            'state.acq.frameRate',
+            'state.acq.scanAmplitudeX',
+            'state.acq.scanAmplitudeY',
+            'state.motor.absXPosition',
+            'state.motor.absYPosition',
+            'state.motor.absZPosition',
+            'state.motor.relXPosition',
+            'state.motor.relYPosition',
+            'state.motor.relZPosition'
+            ]
     
     if acqsoftware == 'ImageJ':
         img_info['nch'] = 1
@@ -182,17 +194,6 @@ def get_tags(fp):
         
     elif acqsoftware.startswith('scanimage'):
         
-        float_keys = [ # ver 3.6-3.8
-                'state.acq.frameRate',
-                'state.acq.scanAmplitudeX',
-                'state.acq.scanAmplitudeY',
-                'state.motor.absXPosition',
-                'state.motor.absYPosition',
-                'state.motor.absZPosition',
-                'state.motor.relXPosition',
-                'state.motor.relYPosition',
-                'state.motor.relZPosition'
-                ]
         if type(Metadata) != dict:
             raise(Exception("invalid scanimage tif"))
         
@@ -383,7 +384,7 @@ def opentif(fp,
             return _check8bit_PIL(im, rng, nframes, abortEvent)
     
     if fp.endswith(('TIF','tif','TIFF','tiff')) and dtype == np.uint16:
-        with tifffile.TIFFfile(fp) as tif: # faster for tiff 8 and 16 bit
+        with tifffile.TiffFile(fp) as tif: # faster for tiff 8 and 16 bit
             if tif.is_imagej:
                 img = tif.series[0].asarray(rng)
             else:
@@ -415,7 +416,7 @@ def opentif(fp,
 def _check8bit_tifffile(fp, rng, nframes, abortEvent):
     mx = []
     _cnt = 0
-    with tifffile.TIFFfile(fp) as tif:
+    with tifffile.TiffFile(fp) as tif:
         while _cnt < nframes-1 and not abortEvent():
             fr = rng[_cnt]
             
@@ -449,41 +450,44 @@ if __name__ == '__main__':
     
     testdata = []
 
-    # micromanager
-    testdata.append(r'testdata\MicroManager\EngGCaMP2xOL_images.tif')
+    # # micromanager
+    # testdata.append(r'testdata\MicroManager\EngGCaMP2xOL_images.tif')
     
-    ## ImageJ
-    testdata.append(r"testdata\ImageJ\Untitled-1.tif")
+    # ## ImageJ
+    # testdata.append(r"testdata\ImageJ\Untitled-1.tif")
     
-    # MATLAB
-    testdata.append(r'testdata\Matlab\test50to100.tif')
-    testdata.append(r"testdata\Matlab\test50to100_shift x5 y-9.tif")
+    # # MATLAB
+    # testdata.append(r'testdata\Matlab\test50to100.tif')
+    # testdata.append(r"testdata\Matlab\test50to100_shift x5 y-9.tif")
     
-    ## ScanImage 3.6 z-stack
-    testdata.append(r"testdata\scanimage36\PSF001.tif")
+    testdata.append(r'R:\Data\itoiori\scanimage\test data3\AM155m5m_80um_his_019.tif')
+    
+    
+    # ## ScanImage 3.6 z-stack
+    # testdata.append(r"testdata\scanimage36\PSF001.tif")
 
-    ## ScanImage 3.8 z-stack
-    testdata.append(r'testdata\beads004.tif')
+    # ## ScanImage 3.8 z-stack
+    # testdata.append(r'testdata\beads004.tif')
     
-    ## ScanImage 3.8 time series
-    testdata.append(r'testdata\40frames001.tif')
+    # ## ScanImage 3.8 time series
+    # testdata.append(r'testdata\40frames001.tif')
     
-    ## ScanImage4B for resonance scan (forked by Peter)
-    testdata.append(r'testdata\ScanImageBTestFiles\Test01_005_.tif')
-    # ScanImage 4B for resonance scan zstack
-    testdata.append(r"testdata\ScanImageBTestFiles\beads_005_.tif")
-    # ScanImage 4B 9 planes x 110 = 990 frames hw=512x512
-    testdata.append(r"R:\Data\itoiori\scanimage\2016\2016-03-11\positive01\IN26tested_008_.tif")
-    # ScanImage 4B 5 planes x 200 = 1000 frames hw=512x512
-    testdata.append(r'R:/Data/itoiori/scanimage/2016/2016-03-22/IN26-pair01-fish04_001_.tif')
-    # ScanImage 4B zstack
-    testdata.append('R:/Data/itoiori/scanimage/2016/2016-03-11/positive01/IN26tested_025_.tif')
+    # ## ScanImage4B for resonance scan (forked by Peter)
+    # testdata.append(r'testdata\ScanImageBTestFiles\Test01_005_.tif')
+    # # ScanImage 4B for resonance scan zstack
+    # testdata.append(r"testdata\ScanImageBTestFiles\beads_005_.tif")
+    # # ScanImage 4B 9 planes x 110 = 990 frames hw=512x512
+    # testdata.append(r"R:\Data\itoiori\scanimage\2016\2016-03-11\positive01\IN26tested_008_.tif")
+    # # ScanImage 4B 5 planes x 200 = 1000 frames hw=512x512
+    # testdata.append(r'R:/Data/itoiori/scanimage/2016/2016-03-22/IN26-pair01-fish04_001_.tif')
+    # # ScanImage 4B zstack
+    # testdata.append('R:/Data/itoiori/scanimage/2016/2016-03-11/positive01/IN26tested_025_.tif')
     
 
-    # toy data by tifffile.TiffWriter.save
-    testdata.append(r'testdata\tifffile\temp.tif')
-    testdata.append(r'testdata\tifffile\temp2.tif')
-    testdata.append(r'testdata\tifffile\temp3.tif')
+    # # toy data by tifffile.TiffWriter.save
+    # testdata.append(r'testdata\tifffile\temp.tif')
+    # testdata.append(r'testdata\tifffile\temp2.tif')
+    # testdata.append(r'testdata\tifffile\temp3.tif')
 
     for fp in testdata:
         print fp
@@ -491,7 +495,10 @@ if __name__ == '__main__':
         print info
 
         meta_data_dict = get_all_tags(fp)
-        print meta_data_dict['acqsoftware']
+        if type(meta_data_dict) == dict:
+            print meta_data_dict['acqsoftware']
+        else:
+            print meta_data_dict
         
         durpre = [1,10]
         durres = [13,20]

@@ -53,8 +53,8 @@ if int(scipy.__version__.split('.')[1])>11:
     from scipy.spatial import ConvexHull
 
 import matplotlib
-if myOS in ('Windows', 'Linux'): # until sip can be installed on OS X Darwin.
-    matplotlib.use('Qt4Agg')
+# if myOS in ('Windows', 'Linux'): # until sip can be installed on OS X Darwin.
+matplotlib.use('Qt4Agg')
 
 import matplotlib.cm as cm
 import matplotlib.pyplot as plt
@@ -88,7 +88,7 @@ from yapsy.PluginManager import PluginManager
 import corr, ROImanager
 from ROImanager import z_prefix
 from ROI import ROIv3 as ROI
-from opentif import opentif, get_tags
+from opentif import opentif, get_tags, get_all_tags
 from create_pymagorsheet_v2 import create_csv
 
 # Global variables
@@ -348,8 +348,10 @@ class canvaspanel(wx.Panel):
         ## ROI drawing mode
         elif (parent.drawing and       # cursor is pencil, draw allowed
               parent.roibuf != None):  # started drawing but not finished
-            dc.SetPen(wx.Pen(wx.NamedColour('cyan'), 1))
-            dc.DrawLines([normxy2dc(x,y) for x,y in parent.roibuf])
+            tmp = [normxy2dc(x,y) for x,y in parent.roibuf] # still can be []
+            if tmp:
+                dc.SetPen(wx.Pen(wx.NamedColour('cyan'), 1))
+                dc.DrawLines(tmp)
 
         ## Lastly draw existing ROIs
         if parent.ROImode and parent.ROI.data != []:
@@ -3478,8 +3480,11 @@ class MainFrame(wx.Frame):
             fp = dlg.GetPath()
             tag = get_all_tags(fp)
             print 'Meta data found in : %s' % fp
-            for k,t in tag.items():
-                print k,'=',t
+            if type(tag) == int:
+                print 'nframes: ', tag
+            else:
+                for k,t in tag.items():
+                    print k,'=',t
 
         dlg.Destroy()
 
@@ -4312,7 +4317,7 @@ class ParamsPanel(wx.Panel):
 
         wx.Panel.__init__(self, parent, -1, size=(202,245))
         self.parent = parent
-        if myOS is not 'Windows':
+        if myOS == 'Linux':
             self.SetFont(wx.Font(7, wx.SWISS, wx.NORMAL, wx.NORMAL))
 
         x,y = 5, 20
@@ -5181,9 +5186,11 @@ def ComputeThisPlane(data_path, tags, howmanyframe, need_AvgTr, need_MaxPr, anat
             frames2load = fr2load_anat
         else: # pick 100 frames eaqually spaced for anatomy
             tmp = np.arange(0, nframes) * nch + ch
-            ind = np.linspace(0, tmp.size-1, 100).astype(int) 
+            ind = np.linspace(0, tmp.size-1, 100).astype(int)
             fr2load_anat = tmp[ind]
             frames2load = np.unique(np.hstack((fr2load_anat, fr2load_pre, fr2load_res)))
+            print 'To save memory, eaqually spaced 100 frames + F and Res period frames are included. Total=%d frames', frames2load.size
+
         loadedframes = opentif(fp, dtype, filt=None, frames2load=frames2load, ch=ch, nch=nch, nframes=nframes) - Fnoise
 
         if Autoalign:
