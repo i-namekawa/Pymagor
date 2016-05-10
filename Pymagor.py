@@ -218,10 +218,11 @@ colormapOptions = {}
 colormapOptions['clut2b (custom)'] = clut2b
 colormapOptions['parula (MATLAB)'] = np.fromstring(parula_buffer, dtype=np.uint8).reshape((256,3))
 colormapOptions['jet (MATLAB)'] = (cm.jet(range(256))[:,:3]* 255).astype(np.uint8)
+if hasattr(cm, 'cubehelix'): # matplotlib 1.4.3 and above
+    colormapOptions['cubehelix (matplotlib)'] = (cm.cubehelix(range(256))[:,:3]* 255).astype(np.uint8)
 if hasattr(cm, 'viridis'): # matplotlib 1.5 and above
     colormapOptions['magma (matplotlib)'] = (cm.magma(range(256))[:,:3]* 255).astype(np.uint8)
     colormapOptions['inferno (matplotlib)'] = (cm.inferno(range(256))[:,:3]* 255).astype(np.uint8)
-    colormapOptions['cubehelix (matplotlib)'] = (cm.cubehelix(range(256))[:,:3]* 255).astype(np.uint8)
     colormapOptions['plasma (matplotlib)'] = (cm.plasma(range(256))[:,:3]* 255).astype(np.uint8)
     colormapOptions['viridis (matplotlib)'] = (cm.viridis(range(256))[:,:3]* 255).astype(np.uint8)
 
