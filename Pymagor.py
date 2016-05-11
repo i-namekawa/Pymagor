@@ -73,7 +73,6 @@ import xlwt  # writing excel
     # import wxversion
     # wxversion.select('2.8-msw-unicode')
 import wx
-# print wx.__version__
 
 import wx.aui as AUI
 import wx.lib.agw.floatspin as FS
@@ -201,6 +200,8 @@ kernel = \
     [0.0296, 0.0828, 0.1166, 0.0828, 0.0296],
     [0.0211, 0.0588, 0.0828, 0.0588, 0.0211],
     [0.0075, 0.0211, 0.0296, 0.0211, 0.0075]]
+
+colors = ('b', 'g', 'r', 'c', 'm', 'y')
 
 # our custom jet like colormap "clut2b" (color look up table 2b, 8-bit) 
 # inherited from "Imagor3" written by Rainer Friedrich.
@@ -366,6 +367,11 @@ class canvaspanel(wx.Panel):
             # (http://python-forum.com/pythonforum/viewtopic.php?f=4&t=6939)
 
             z = parent.changetitle(wantz=True)
+            
+            seen = set()
+            categories = [c for c in parent.ROI.category if c not in seen and not seen.add(c)]
+            n_categories = len(categories)
+            _colors = [wx.NamedColour(name) for name in ['red','yellow','green','cyan','yellow green','white']]
 
             for n, roi in enumerate(parent.ROI.data):
                 if parent.ROI.z[n] == z: # matching z-plane for this ROI?
@@ -375,10 +381,20 @@ class canvaspanel(wx.Panel):
                         data = [normxy2dc(x-offsetx,y-offsety) for x,y in roi]
                     else:                        
                         data = [normxy2dc(x,y) for x,y in roi]
-                    
+
                     if (not parent.drawing or parent.ROIoutlines):
                         #Change this line to change the color and thickness of the ROI!!!
-                        dc.SetPen(wx.Pen(wx.NamedColour('red'), 3))
+                        if n_categories>1:
+                            # cycle throu 6 colors
+                            ind = categories.index(parent.ROI.category[n]) % 6
+                            if n_categories>6 and n>=6:
+                                pen = wx.Pen(_colors[ind], 3, wx.LONG_DASH)
+                            else:
+                                pen = wx.Pen(_colors[ind], 3)
+                            dc.SetPen(pen)
+                        else:
+                            dc.SetPen(wx.Pen(_colors[0], 3)) 
+
                         dc.DrawPolygon(data)
 
                     if parent.ROInumbers:
@@ -860,20 +876,20 @@ class trial2(wx.Frame):
         postfix = ''
         data_path = ''
         fname = ''
-
+        curframe = int(self.curframe)
         if self.TVch in [2,3,4]: # F, each dF/F map, anatomy
-            title = ' '.join([self.tag[self.curframe][ind] for ind in [1,2,3,0]])[:-4]
-            data_path = self.tag[self.curframe][-1]
-            fname = self.tag[self.curframe][0]
-            z = self.tag[self.curframe][1]
-            Foffset = self.imgdict['Foffset'][self.curframe, 0:2]
+            title = ' '.join([self.tag[curframe][ind] for ind in [1,2,3,0]])[:-4]
+            data_path = self.tag[curframe][-1]
+            fname = self.tag[curframe][0]
+            z = self.tag[curframe][1]
+            Foffset = self.imgdict['Foffset'][curframe, 0:2]
         elif self.TVch in [7,8]: # max or avg projection
-            title = z = self.imgdict['uniquekey'][self.curframe]
+            title = z = self.imgdict['uniquekey'][curframe]
             if wantfp_offset:
                 print 'Plotting from max or avg projection is not suported'
                 return None, None
         elif self.TVch in [5,6]: # avg odor maps, avg_F
-            z, odorname = self.imgdict['avg_odormap odornames'][self.curframe]
+            z, odorname = self.imgdict['avg_odormap odornames'][curframe]
             title = '%s %s' % (z, odorname)
             if wantfp_offset:
                 eachplane = [ tag for tag in self.tag if z == tag[1] and tag[2] == odorname]
@@ -881,7 +897,7 @@ class trial2(wx.Frame):
                 return eachplane, offsets
         else: # [0] raw or [1] dF/F filtered
             zsize = self.z / len(self.tag)
-            _ind = int(self.curframe / zsize)
+            _ind = int(curframe / zsize)
             _tag = self.tag[_ind]
             data_path = _tag[-1]
 
@@ -913,7 +929,7 @@ class trial2(wx.Frame):
         if type(fp) != list:
             self.checkhist(fp)
 
-        img = self.img[:,:,self.curframe]
+        img = self.img[:,:,curframe]
         txt = 'Min and Max pixel values in image : %d, %d' % (img.min(), img.max())
         self.ManScaling.SetToolTip( wx.ToolTip(txt) )
 
@@ -1090,7 +1106,7 @@ class trial2(wx.Frame):
 
         markers = ('None', 'None', '.')
         linestyles = ('-', '-.', '--')
-        colors = ('b', 'g', 'r', 'c', 'm', 'y')
+        # colors = ('b', 'g', 'r', 'c', 'm', 'y') # make this global
         for n in range( data.shape[1] ):
             color = colors[np.mod(n,6)]
             linestyle = linestyles[int(np.mod(np.floor(n/6),3))]
@@ -1163,19 +1179,20 @@ class trial2(wx.Frame):
         
         # clip out the zoomd region
         x1, y1, x2, y2 = self.zoomrect
+        curframe = int(self.curframe)
         if self.dragging:
             offsetx, offsety = self.boarder_check()
             frame = self.img[self.h-y2-offsety : self.h-y1-offsety,
                             x1+offsetx : x2+offsetx,
-                            self.curframe].copy() # copy important for manualscaling
+                            curframe].copy() # copy important for manualscaling
             if update_zoomrect:
                 self.zoomrect = (x1+offsetx, y1+offsety, x2+offsetx, y2+offsety)
         else:
             offsetx, offsety = 0, 0
-            frame = self.img[self.h-y2:self.h-y1, x1:x2, self.curframe].copy() # copy important for manualscaling
+            frame = self.img[self.h-y2:self.h-y1, x1:x2, curframe].copy() # copy important for manualscaling
 
         if SDthrs and self.TVch in [1, 3, 6]:
-            thrs = self.img[:,:,self.curframe].std() * 2.5
+            thrs = self.img[:,:,curframe].std() * 2.5
             self.param.sc_cutoff.SetValue( thrs )
         
         # color look up
@@ -2030,9 +2047,11 @@ class trial2(wx.Frame):
 
             Pooled = self.PDF(fname, data_path)
             self.savemat(fname, Pooled)
-
+        else:
+            return
         dlg.Destroy()
-        
+                
+
         dlg = wx.MessageDialog(None, 'Exported successfully. Close plots?', style=wx.YES_NO)
         if dlg.ShowModal() == wx.ID_YES:
             self.Parent.OnCloseAll(None)
@@ -3070,6 +3089,10 @@ class MainFrame(wx.Frame):
             self.log.SetFont(wx.Font(9, wx.SWISS, wx.NORMAL, wx.NORMAL))
         if verbose:
             print 'Running on %s' % sys.version
+            print 'numpy= %s' % np.__version__, 
+            print 'scipy= %s' % scipy.__version__, 
+            print 'wxPython= %s' % wx.__version__, 
+            print 'matplotlib= %s' % matplotlib.__version__
             print ini_log
 
         # ParamsPane
@@ -5196,7 +5219,7 @@ def ComputeThisPlane(data_path, tags, howmanyframe, need_AvgTr, need_MaxPr, anat
             ind = np.linspace(0, tmp.size-1, 100).astype(int)
             fr2load_anat = tmp[ind]
             frames2load = np.unique(np.hstack((fr2load_anat, fr2load_pre, fr2load_res)))
-            print 'To save memory, eaqually spaced 100 frames + F and Res period frames are included. Total=%d frames', frames2load.size
+            print 'To save memory, eaqually spaced 100 frames + F and Res period frames are used for anatomy image. Total=%d frames', frames2load.size
 
         loadedframes = opentif(fp, dtype, filt=None, frames2load=frames2load, ch=ch, nch=nch, nframes=nframes) - Fnoise
 
@@ -5520,9 +5543,10 @@ def pack(data_path, tags, howmanyframe, need_AvgTr, need_MaxPr, anatomy_method,
         if need_MaxPr:
             MaxProj.append( np.max(np.dstack(resmapP),2) )
         
-        for n, nframe in enumerate(nframes): # insert # of frame found in image into tag
-            eachplane[n].insert(-1, nframe)  # this goes to imgdict
-        sorted_tag.append(eachplane)
+        for n, nframe in enumerate(nframes): # insert # of frames found in image into tag
+            if eachplane[n][-2] != nframe:   # check if that's already done. e.g. re-load
+                eachplane[n].insert(-1, nframe)
+        sorted_tag.append(eachplane) # this goes to imgdict
         
         if len(eachplane) > 1:
             # filp y-axis due to the design changes in Pymagor v2.0
