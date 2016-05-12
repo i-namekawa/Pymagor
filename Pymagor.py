@@ -80,6 +80,8 @@ import wx.lib.delayedresult as delayedresult
 import wx.lib.mixins.listctrl as listmix
 import wx.py
 
+import tifffile
+
 from yapsy.PluginManager import PluginManager
 
 
@@ -201,6 +203,7 @@ kernel = \
     [0.0211, 0.0588, 0.0828, 0.0588, 0.0211],
     [0.0075, 0.0211, 0.0296, 0.0211, 0.0075]]
 
+# used in plotting
 colors = ('b', 'g', 'r', 'c', 'm', 'y')
 
 # our custom jet like colormap "clut2b" (color look up table 2b, 8-bit) 
@@ -1496,7 +1499,7 @@ class trial2(wx.Frame):
         ctxmenu = wx.Menu()
         ctxmenu.Append(self.ID_lock, 'Resistant to \'Close all plots and images\'', '', wx.ITEM_CHECK)
         ctxmenu.Check(self.ID_lock, self.lock)
-        ctxmenu.Append(self.ID_openfolder, 'Open the data folder in explorer, finder etc')
+        ctxmenu.Append(self.ID_openfolder, 'Open the data folder (explorer/finder/nautilus)')
         ctxmenu.Append(self.ID_closeall, 'Close all plots and images')
         ctxmenu.Append(self.ID_fitw, 'Fit to the tool bar width')
         ctxmenu.Append(self.ID_scaling1, 'Fit to the original image width')
@@ -1849,7 +1852,11 @@ class trial2(wx.Frame):
         fppdf = os.path.join(data_path,
                         os.path.basename(data_path)+
                         time.strftime('.mat'))
-        wildcard = 'ROI data files (*.mat,*.npz)|*.mat;*_ROIs.npz'
+        if npz:
+            wildcard = 'numpy save file (*.npz)|*.npz|mat file (*.mat)|*.mat'
+        else:
+            wildcard = 'mat file (*.mat)|*.mat|numpy save file (*.npz)|*.npz'
+        
         if _id == self.ID_ROIimport:
             dlg = wx.FileDialog(
                 self, message='Load ...', defaultDir=data_path,
@@ -1857,7 +1864,6 @@ class trial2(wx.Frame):
                 style=wx.FD_OPEN )
             if dlg.ShowModal() == wx.ID_OK:
                 fp = dlg.GetPath()
-                #_matD = matDrop(self)
                 self.loadROI(fp)
 
         elif _id == self.ID_ROIexport:
@@ -1869,9 +1875,12 @@ class trial2(wx.Frame):
                 fp = dlg.GetPath()
                 roicell, roiplane, roicategory = pack2npobj(self.ROI)
                 dct = {'ROI_polygons':roicell, 'ROI_Field_of_views':roiplane, 'ROI_categories':roicategory}
-                fname = os.path.basename(fp)[:-4]
-                sname = self.validate_sname(fname)
-                sio.savemat(fp,{sname : dct}, oned_as='row', do_compression=True)
+                if fp.endswith('.npz'):
+                    np.savez_compressed(fp, **dct)
+                elif fp.endswith('.mat'):
+                    fname = os.path.basename(fp)[:-4]
+                    sname = self.validate_sname(fname)
+                    sio.savemat(fp,{sname : dct}, oned_as='row', do_compression=True)
 
         dlg.Destroy()
         self.Refresh()
@@ -2051,11 +2060,14 @@ class trial2(wx.Frame):
             return
         dlg.Destroy()
                 
-
-        dlg = wx.MessageDialog(None, 'Exported successfully. Close plots?', style=wx.YES_NO)
-        if dlg.ShowModal() == wx.ID_YES:
-            self.Parent.OnCloseAll(None)
-        dlg.Destroy()
+        
+        if self.parent.export_needplotting.IsChecked():
+            dlg = wx.MessageDialog(None, 'Exported successfully. Close plots?', style=wx.YES_NO)
+            if dlg.ShowModal() == wx.ID_YES:
+                self.Parent.OnCloseAll(None)
+            dlg.Destroy()
+        else:
+            Pymagor2.showmessage('Exported successfully.')
 
         # generating PDF means the user like the current parameters. Let's update durpre, durres, Fnoise 
         # settings stored in offset file, by calling this with None to img arg
@@ -2856,7 +2868,7 @@ class trial2(wx.Frame):
 
     def OnSpin_z(self, event):
         self.scz.SetRange(0, self.img.shape[2]-1)
-        self.curframe = self.scz.GetValue()
+        self.curframe = int(self.scz.GetValue())
         self.refresh_buf()
         self.Refresh()
         self.changetitle()
@@ -3092,7 +3104,8 @@ class MainFrame(wx.Frame):
             print 'numpy= %s' % np.__version__, 
             print 'scipy= %s' % scipy.__version__, 
             print 'wxPython= %s' % wx.__version__, 
-            print 'matplotlib= %s' % matplotlib.__version__
+            print 'matplotlib= %s' % matplotlib.__version__, 
+            print 'tifffile.py= %s' % tifffile.__version__
             print ini_log
 
         # ParamsPane
@@ -3342,8 +3355,8 @@ class MainFrame(wx.Frame):
             self.showmessage(msg)
             return
 
-        if verbose:
-            print csvdict.items()
+        # if verbose:
+        #     print csvdict.items()
 
         self.csvname = csvname
         self.OnBatchLauncher(None)
@@ -3391,6 +3404,9 @@ class MainFrame(wx.Frame):
         if open_flag:
             if fname.endswith(('csv', 'xls')):
                 self.loadcsv(self.fp)
+                if LastFnoise is not None:
+                    self.ParamsPane.sc_Fnoise.SetValue(LastFnoise)
+
             elif fname.endswith(('tif','ior')):
                 if packingflag:
                     data_path, data_files, all_frame, AvgTr, MaxPr, reftr = packingflag
@@ -4552,7 +4568,7 @@ class BatchLauncher(wx.Panel):
 
         wx.Panel.__init__(self, parent, id, size=size, name='BatchLauncher')
 
-        if platform.system() == 'Linux':
+        if myOS == 'Linux':
             self.SetFont(wx.Font(7, wx.SWISS, wx.NORMAL, wx.NORMAL))
 
         self.parent = parent

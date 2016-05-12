@@ -241,8 +241,8 @@ class ROImanager(wx.Frame):
         panel = wx.PyScrolledWindow(self, wx.ID_ANY)
         panel.SetToolTip(wx.ToolTip('Close this from the button on the image window.'))
         self.grid = DragableGrid(panel, roi, parent.parent.customROIcategory)
-        self.grid.Bind(gridlib.EVT_GRID_CELL_RIGHT_CLICK,
-                       self.showPopupMenu)
+        self.grid.Bind(gridlib.EVT_GRID_CELL_RIGHT_CLICK, self.showPopupMenu)
+
         width, height = panel.GetSize()
         self.unit = 1
         panel.SetScrollbars( 0, self.unit, 0, height/self.unit )
@@ -263,6 +263,7 @@ class ROImanager(wx.Frame):
         hbox.Add(self.confirmbtn, 0)
         sizer.Add(hbox, 0, wx.ALIGN_CENTER, 5)
         sizer.Add(self.grid, 1, wx.EXPAND, 5)
+        sizer.AddSpacer(20)
         panel.SetSizer(sizer)
         panel.Fit()
         
@@ -271,7 +272,8 @@ class ROImanager(wx.Frame):
         self.SetSizer(framesizer)
         self.Fit() # PyScrolledWindow seems to interfare with the height estimation
         w,h = self.GetSize()  # so, manually set y
-        self.SetSize((w,h+300))
+        self.SetSize((w+20,h+350)) #+20 prevent vertical scroll bar to appear in grid
+        panel.SetBestSize()
         
         self.Show()
     
@@ -441,6 +443,28 @@ if __name__ == "__main__":
     
     roi = ROI.ROIv3()
     roi.add([(92, 10), (94, 14), (94, 19), (90, 23)], 'z0','Skin')
+    roi.add([(192, 110), (194, 124), (194, 129), (190, 133)], 'z0')
+    roi.add([(192, 110), (194, 124), (194, 129), (190, 133)], 'z0')
+    roi.add([(192, 110), (194, 124), (194, 129), (190, 133)], 'z0')
+    roi.add([(192, 110), (194, 124), (194, 129), (190, 133)], 'z0')
+    roi.add([(192, 110), (194, 124), (194, 129), (190, 133)], 'z0')
+    roi.add([(192, 110), (194, 124), (194, 129), (190, 133)], 'z0')
+    roi.add([(192, 110), (194, 124), (194, 129), (190, 133)], 'z0')
+    roi.add([(192, 110), (194, 124), (194, 129), (190, 133)], 'z0')
+    roi.add([(192, 110), (194, 124), (194, 129), (190, 133)], 'z0')
+    roi.add([(192, 110), (194, 124), (194, 129), (190, 133)], 'z0')
+    roi.add([(192, 110), (194, 124), (194, 129), (190, 133)], 'z0')
+    roi.add([(192, 110), (194, 124), (194, 129), (190, 133)], 'z0')
+    roi.add([(192, 110), (194, 124), (194, 129), (190, 133)], 'z0')
+    roi.add([(192, 110), (194, 124), (194, 129), (190, 133)], 'z0')
+    roi.add([(192, 110), (194, 124), (194, 129), (190, 133)], 'z0')
+    roi.add([(192, 110), (194, 124), (194, 129), (190, 133)], 'z0')
+    roi.add([(192, 110), (194, 124), (194, 129), (190, 133)], 'z0')
+    roi.add([(192, 110), (194, 124), (194, 129), (190, 133)], 'z0')
+    roi.add([(192, 110), (194, 124), (194, 129), (190, 133)], 'z0')
+    roi.add([(192, 110), (194, 124), (194, 129), (190, 133)], 'z0')
+    roi.add([(192, 110), (194, 124), (194, 129), (190, 133)], 'z0')
+    roi.add([(192, 110), (194, 124), (194, 129), (190, 133)], 'z0')
     roi.add([(192, 110), (194, 124), (194, 129), (190, 133)], 'z0')
     roi.add([(66, 92), (63, 97), (56, 98), (55, 93), (57, 88), (60, 86), (65, 86), (67, 92)], 'z10')
     roi.add([(16, 112), (60, 86), (65, 86), (67, 92)], 'z-10')
