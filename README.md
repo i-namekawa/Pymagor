@@ -38,7 +38,7 @@ The 64-bit binary is possible to build but was too huge (>200 MB, due to numpy/s
   * matplotlib (may need 1.4.* on Mac)
   * xlrd
   * xlwt
-  * wx (v2.8.12.1 recommended. But v3.0 and above also seem to work)
+  * wx (v3.0.0.0 or newer)
   * yapsy
   * tifffile.py (ver 2016.4.13 or newer. pip will install a slightly older version which may have a problem)
 
@@ -47,10 +47,9 @@ The 64-bit binary is possible to build but was too huge (>200 MB, due to numpy/s
 #### Conda command to set up Python 2.7.* (64-bit) for Pymagor
 
 * Install Miniconda (or full anaconda) for conda command line tool
-* `conda create -n pymagor_env python=2.7 xlrd xlwt matplotlib scipy=0.16.0 pillow`
+* `conda create -n pymagor_env python=2.7 xlrd xlwt matplotlib scipy=0.16.0 pillow wxpython`
 * `activate pymagor_env` (win) or `source activate pymagor_env` (Linux/Mac)
-* `conda install wxpython=3.0`.  If there are problems with v3.0, downgrade to v2.8 by the official binary installer from sourceforge (wxPython2.8-win64-unicode-2.8.12.1-py27.exe) and choose C:/Miniconda3/envs/pymagor_env/lib/site-packages.
-* then install 2 more libralies as follows:
+* On the pymagor_env activated console, install 2 more libralies as follows:
  * yapsy: `pip install yapsy`
  * tifffile: `pip install tifffile-2016.4.13-cp27-cp27m-win_amd64.whl` (or newer) from Gohlke's site at http://www.lfd.uci.edu/~gohlke/pythonlibs/#vlfd Or, simply copy tifffile.py to `site-packages`. Compilation of tifffile.c is optional but recommended for compressed tif.
 
