@@ -486,9 +486,10 @@ class trial2(wx.Frame):
         self.toolbar1 = wx.Panel(self, -1)
         self.toolbar2 = wx.Panel(self, -1)
         self.btnbar = wx.Panel(self, -1)
+        self.btnbar2 = wx.Panel(self, -1)
         self.display = canvaspanel(self, -1, size=(self.w, self.h))
 
-        self.SetBackgroundColour(self.toolbar1.GetBackgroundColour())
+        # self.SetBackgroundColour(self.toolbar1.GetBackgroundColour())
 
         # ToolTip
         info = '%d file(s) opened as %s, (w,h,z)=(%d,%d,%d)' % (
@@ -603,37 +604,42 @@ class trial2(wx.Frame):
         self.ID_jump2eachmap = wx.NewId()
         self.ID_toggleROImngr = wx.NewId()
         self.ID_toggleRecalc = wx.NewId()
-        self.jump2anat = wx.Button(self.btnbar, self.ID_jump2anat, 'Anatomy', style=wx.BU_EXACTFIT)
+        self.jump2anat = wx.Button(self.btnbar2, self.ID_jump2anat, 'Anatomy', style=wx.BU_EXACTFIT)
         self.jump2anat.SetMinSize(self.jump2anat.GetSize())
-        self.jump2avgmap = wx.Button(self.btnbar, self.ID_jump2avgmap, 'avg_dF/F', style=wx.BU_EXACTFIT)
+        self.jump2avgmap = wx.Button(self.btnbar2, self.ID_jump2avgmap, 'avg_dF/F', style=wx.BU_EXACTFIT)
         self.jump2avgmap.SetMinSize(self.jump2avgmap.GetSize())
-        self.ROImngr = wx.ToggleButton(self.btnbar, self.ID_toggleROImngr, 'ROItable', style=wx.BU_EXACTFIT)
+        self.ROImngr = wx.ToggleButton(self.btnbar2, self.ID_toggleROImngr, 'ROItable', style=wx.BU_EXACTFIT)
         self.ROImngr.SetOwnFont(wx.Font(8, wx.DEFAULT, wx.NORMAL, wx.BOLD))
         self.ROImngr.Bind(wx.EVT_TOGGLEBUTTON, self.OnROImngr)
         self.ROImngr.SetToolTip(wx.ToolTip('Toggle show/hide the ROI table'))
 
-        self.btns = [self.zoominbtn, self.zoomoutbtn, self.panbtn, self.playbtn,
-                self.rewindbtn, self.drawROIbtn, self.moveROIbtn,
-                self.trashROIbtn, self.plotbtn, self.reportbtn,
-                self.jump2anat, self.jump2avgmap, self.ROImngr,
-                ]
 
         # sizer
         hbox1 = wx.BoxSizer(wx.HORIZONTAL)
         hbox2 = wx.BoxSizer(wx.HORIZONTAL)
+        hbox3 = wx.BoxSizer(wx.HORIZONTAL)
+        hbox4 = wx.BoxSizer(wx.HORIZONTAL)
         tools1 = [txt_z, self.scz, self.ManScaling, txt_H, self.scH, txt_L, self.scL]
         tools2 = [self.updateimgbtn, self.autoY, txt_Ymax, self.scYmax, txt_Ymin, self.scYmin]
+        self.btns = [self.zoominbtn, self.zoomoutbtn, self.panbtn, self.playbtn,
+                    self.rewindbtn, self.drawROIbtn, self.moveROIbtn,
+                    self.trashROIbtn, self.plotbtn, self.reportbtn,
+                    self.jump2anat, self.jump2avgmap, self.ROImngr]
+        
         for t in tools1:
             hbox1.Add(t, 0, wx.ALIGN_CENTER_VERTICAL|wx.RIGHT, 1)
         for t in tools2:
             hbox2.Add(t, 0, wx.ALIGN_CENTER_VERTICAL|wx.RIGHT, 1)
-        self.toolbar1.SetSizer(hbox1)
-        self.toolbar2.SetSizer(hbox2)
-        self.toolbar1.Fit()
-        self.toolbar2.Fit()
+        for t in self.btns[:-3]:
+            hbox3.Add(t, 0, wx.ALIGN_CENTER_VERTICAL|wx.RIGHT, 1)
+        for t in self.btns[-3:]:
+            hbox4.Add(t, 0, wx.ALIGN_CENTER_VERTICAL|wx.RIGHT, 1)
+        self.toolbar1.SetSizerAndFit(hbox1)
+        self.toolbar2.SetSizerAndFit(hbox2)
+        self.btnbar.SetSizerAndFit(hbox3)
+        self.btnbar2.SetSizerAndFit(hbox4)
+        
         # call a method to place other widgets, wich can move in resize event
-        self.placing = True
-
         if parent.fitw.IsChecked():
             self.placepanels(None)
         else:
@@ -942,96 +948,57 @@ class trial2(wx.Frame):
         self.SetTitle(title)
         self.Refresh()
 
-    def placepanels(self, width_for_btns):
-        '''
-        manually wrapping the UI elements
-        In the future, re-implement this using WrapSizer in wxPython 3.0
-        http://wxpython.org/Phoenix/docs/html/WrapSizer.html
-        '''
-
-        #print 'placepanels: width_for_btns = ', width_for_btns
+    def placepanels(self, width_for_btns=None):
+        
         self.placing = True
-        sizer = wx.BoxSizer(wx.VERTICAL)
-        sizer.Add((0,1), proportion=0, flag=wx.EXPAND)
 
-        hbox3 = wx.BoxSizer(wx.HORIZONTAL)
-        hbox3.Add(self.toolbar1, proportion=0, flag=wx.EXPAND)
-        hbox3.Add(self.toolbar2, proportion=0, flag=wx.EXPAND)
-        w,_ = hbox3.ComputeFittingClientSize(self)
-        #print 'placepanels: w', w
+        w = self.toolbar1.GetSizeTuple()[0]
 
-        if width_for_btns:
-            _width_for_btns = width_for_btns
-        else:
-            dw, dh = self.DispSize
-            if w * self.h / self.w > dh * 0.85:
-                _width_for_btns = dh * 0.85 * self.w / self.h
+        # figure out initial width
+        if width_for_btns is None:
+            if w < self.w:
+                width_for_btns = self.w
             else:
-                _width_for_btns = w
-
-        if w <= _width_for_btns:
-            sizer.Add(hbox3, proportion=0, flag=wx.EXPAND)
-            max_w = _width_for_btns
-        else:
-            self.toolbar1.Fit()
-            self.toolbar2.Fit()
-            max_w = max(_width_for_btns,
-                        self.toolbar1.GetSizeTuple()[0],
-                        self.toolbar2.GetSizeTuple()[0])
-            sizer.Add(self.toolbar1, proportion=0, flag=wx.EXPAND)
-            sizer.Add(self.toolbar2, proportion=0, flag=wx.EXPAND)
-
-        hbox4 = wx.BoxSizer(wx.HORIZONTAL)
-        hbox5 = wx.BoxSizer(wx.HORIZONTAL)
-        for b in self.btns:
-            _w,_h = hbox4.ComputeFittingClientSize(self.btnbar)
-            if (_w + b.GetSizeTuple()[0] ) < max_w:
-                hbox4.Add(b,0)
-            else:
-                hbox5.Add(b,0)
-
-        if hbox5.ComputeFittingClientSize(self.btnbar)[0]:
-            vbox2 = wx.BoxSizer(wx.VERTICAL)
-            vbox2.Add(hbox4)
-            vbox2.Add(hbox5)
-            self.btnbar.SetSizer(vbox2)
-        else:
-            self.btnbar.SetSizer(hbox4)
-        self.btnbar.Fit()
-
-        if max_w < self.btnbar.GetSizeTuple()[0]:
-            max_w = self.btnbar.GetSizeTuple()[0]
-
-        sizer.Add(self.btnbar, proportion=0, flag=wx.EXPAND)
-        self.ScalingFactor = max_w / float(self.w)
-
-        if self.ScalingFactor <= 1:
-            self.ScalingFactor = 1
-        elif self.ScalingFactor > 4:
-            self.ScalingFactor = 1.2 ** 8
-
-        self.display.SetSize(( self.w * self.ScalingFactor,
-                               self.h * self.ScalingFactor ))
-        self.display.SetMinSize(( self.w * self.ScalingFactor,
-                               self.h * self.ScalingFactor ))
+                width_for_btns = w
+        
+        # clamp range when too big or small
+        dw, dh = self.DispSize # current monitor resolution
+        if width_for_btns * self.h / self.w > dh * 0.85:
+            width_for_btns = dh * 0.85 * self.w / self.h
+        elif width_for_btns < w:
+            width_for_btns = w
+        
+        # re-size display panel keeping the aspect
+        self.ScalingFactor = width_for_btns / float(self.w)
+        display_w, display_h = self.w * self.ScalingFactor, self.h * self.ScalingFactor
+        self.display.SetMinSize(( display_w, display_h ))
         self.refresh_buf()
-
-        # wx.SHAPED will cause wxpython 3.0 C++ assertion error http://trac.wxwidgets.org/ticket/3104
-        # sizer.Add(self.display, proportion=1, flag=wx.SHAPED|wx.EXPAND|wx.ALL, border=2)
-        sizer.Add(self.display, proportion=1, flag=wx.EXPAND|wx.ALL, border=2)
-        self.SetSizer(sizer)
-        self.mainsizer = sizer
+        
+        WrapSizer = wx.WrapSizer()
+        WrapSizer.Add(self.toolbar1)
+        WrapSizer.Add(self.toolbar2)
+        WrapSizer.Add(self.btnbar)
+        WrapSizer.Add(self.btnbar2)
+        WrapSizer.Add(self.display, proportion=1, flag=wx.EXPAND|wx.ALIGN_CENTER)
+        self.SetSizer(WrapSizer)
+        self.mainsizer = WrapSizer
 
         self.Fit()  # Fit first and Layout!!
         self.Layout()
+        
+        # hack around the WrapSizer not respecting MinSize issue.
+        self.display.SetMinSize(( display_w, display_h ))
+        self.Fit()
+        self.Layout()
+        
         self.Refresh()
-        self.b4resize = self.display.GetSizeTuple()
-        wb4, hb4 = self.b4resize
-        ww, hw = sizer.ComputeFittingWindowSize(self)
+        
+        wb4, hb4 = self.b4resize = self.display.GetSizeTuple()
+        ww, hw = self.GetSizeTuple()
         self.xmargin = abs(ww - wb4)
 
         self.placing = False
-        #print 'placepanels: self.GetSize, ScalingFactor', self.GetSizeTuple(), self.ScalingFactor
+
 
     def frame_resize(self, event):
 

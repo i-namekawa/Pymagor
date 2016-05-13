@@ -353,7 +353,6 @@ class ROImanager(wx.Frame):
                                     ROIpoly_n=(ROIpolys, ROIfound),
                                     Foffsets=Foffset,
                                     wantsraw=raw )            
-
             
         else:
             dFoF, ROIfound = parent.getdFoF(fp, dtype=np.uint16, offset=Foffset, raw=raw)
