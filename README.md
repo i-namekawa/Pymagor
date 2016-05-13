@@ -40,7 +40,7 @@ The 64-bit binary is possible to build but was too huge (>200 MB, due to numpy/s
   * xlwt
   * wx (v3.0.0.0 or newer)
   * yapsy
-  * tifffile.py (ver 2016.4.13 or newer. pip will install a slightly older version which may have a problem)
+  * tifffile.py (ver 2016.4.13 or newer. pip will install a slightly older version which may require an older numpy API)
 
 3. Clone the git repogitory (https://github.com/i-namekawa/Pymagor.git or download zip) and run Pymagor2.py. On MaxOS, run with `pythonw` rather than `python`.
 
