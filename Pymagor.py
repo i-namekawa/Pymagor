@@ -24,9 +24,7 @@
 ##  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 ##  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-
-# experimental wxpython3.0.0.0 support. 
-
+# wxpython support seems done. toolbar height adjustments.
 # TODO: generate multi channel toy data and test alignment using different "Ref ch"
 
 
@@ -485,11 +483,11 @@ class trial2(wx.Frame):
         # put panels
         self.toolbar1 = wx.Panel(self, -1)
         self.toolbar2 = wx.Panel(self, -1)
-        self.btnbar = wx.Panel(self, -1)
+        self.btnbar1 = wx.Panel(self, -1)
         self.btnbar2 = wx.Panel(self, -1)
         self.display = canvaspanel(self, -1, size=(self.w, self.h))
 
-        # self.SetBackgroundColour(self.toolbar1.GetBackgroundColour())
+        self.SetBackgroundColour(self.toolbar1.GetBackgroundColour())
 
         # ToolTip
         info = '%d file(s) opened as %s, (w,h,z)=(%d,%d,%d)' % (
@@ -546,42 +544,42 @@ class trial2(wx.Frame):
         self.scYmin.SetValue(-Ymax/4)
         self.scYmin.Enable(False)
 
-        # Create widgets on btnbar
+        # Create widgets on btnbar1
         zoomin_bmp = wx.Bitmap(r'resources/Baumgartner/zoomin_24.ico', wx.BITMAP_TYPE_ICO)
-        self.zoominbtn = wx.BitmapButton(self.btnbar, -1, zoomin_bmp, style = wx.NO_BORDER)
+        self.zoominbtn = wx.BitmapButton(self.btnbar1, -1, zoomin_bmp, style = wx.NO_BORDER)
         zoomin_disabled_bmp = wx.Bitmap(r'resources/Baumgartner/zoomin_disabled_24.ico', wx.BITMAP_TYPE_ICO)
         self.zoominbtn.SetBitmapDisabled(zoomin_disabled_bmp)
         self.zoominbtn.SetToolTip(wx.ToolTip('Zoom mode. Shortcut key: z'))
 
         zoomout_bmp = wx.Bitmap(r'resources/Baumgartner/zoomout_24.ico', wx.BITMAP_TYPE_ICO)
-        self.zoomoutbtn = wx.BitmapButton(self.btnbar, -1, zoomout_bmp, style = wx.NO_BORDER)
+        self.zoomoutbtn = wx.BitmapButton(self.btnbar1, -1, zoomout_bmp, style = wx.NO_BORDER)
         zoomout_disabled_bmp = wx.Bitmap(r'resources/Baumgartner/zoomout_disabled_24.ico', wx.BITMAP_TYPE_ICO)
         self.zoomoutbtn.SetBitmapDisabled(zoomout_disabled_bmp)
         self.zoomoutbtn.SetToolTip(wx.ToolTip('Zoom-out to the entire view (Shortcut key: e)'))
 
         pan_bmp = wx.Bitmap(r'resources/gentleface.com/cursor_drag_hand_icon.ico', wx.BITMAP_TYPE_ICO)
-        self.panbtn = wx.BitmapButton(self.btnbar, -1, pan_bmp, style = wx.NO_BORDER)
+        self.panbtn = wx.BitmapButton(self.btnbar1, -1, pan_bmp, style = wx.NO_BORDER)
         self.panbtn.SetToolTip(wx.ToolTip('Pannig hand mode. Drag to move around (Shortcut key: h)'))
 
         self.play_bmp = wx.Bitmap(r'resources/Baumgartner/button_play_24.ico', wx.BITMAP_TYPE_ICO)
         self.stop_bmp = wx.Bitmap(r'resources/Baumgartner/button_pause_24.ico', wx.BITMAP_TYPE_ICO)
         self.rec_bmp = wx.Bitmap(r'resources/Baumgartner/Button_Record_24.ico', wx.BITMAP_TYPE_ICO)
         rewind_bmp = wx.Bitmap(r'resources/Baumgartner/button_previous_24.ico', wx.BITMAP_TYPE_ICO)
-        self.playbtn = wx.BitmapButton(self.btnbar, -1, self.play_bmp, style = wx.NO_BORDER)
+        self.playbtn = wx.BitmapButton(self.btnbar1, -1, self.play_bmp, style = wx.NO_BORDER)
         self.playbtn.SetToolTip(wx.ToolTip('Play/Stop video (Shortcut key: v)'))
-        self.rewindbtn = wx.BitmapButton(self.btnbar, -1, rewind_bmp, style = wx.NO_BORDER)
+        self.rewindbtn = wx.BitmapButton(self.btnbar1, -1, rewind_bmp, style = wx.NO_BORDER)
         self.rewindbtn.SetToolTip(wx.ToolTip('Back to the beginning (Shortcut key: b)'))
 
         draw_bmp = wx.Bitmap(r'resources/Baumgartner/pencil_24.ico', wx.BITMAP_TYPE_ICO)
-        self.drawROIbtn = wx.BitmapButton(self.btnbar, -1, draw_bmp, style = wx.NO_BORDER)
+        self.drawROIbtn = wx.BitmapButton(self.btnbar1, -1, draw_bmp, style = wx.NO_BORDER)
         self.drawROIbtn.SetToolTip(wx.ToolTip('ROI drawing (Shortcut key: r)'))
 
         roimove_bmp = wx.Bitmap(r'resources/David_Hopkins/arrow_move_24.ico', wx.BITMAP_TYPE_ICO)
-        self.moveROIbtn = wx.BitmapButton(self.btnbar, -1, roimove_bmp, style = wx.NO_BORDER)
+        self.moveROIbtn = wx.BitmapButton(self.btnbar1, -1, roimove_bmp, style = wx.NO_BORDER)
         self.moveROIbtn.SetToolTip(wx.ToolTip('shift ROI (Shortcut key: s)'))
 
         eraser_bmp = wx.Bitmap(r'resources/Nayak/eraser.ico', wx.BITMAP_TYPE_ICO)
-        self.trashROIbtn = wx.BitmapButton(self.btnbar, -1, eraser_bmp, style = wx.NO_BORDER)
+        self.trashROIbtn = wx.BitmapButton(self.btnbar1, -1, eraser_bmp, style = wx.NO_BORDER)
         self.trashROIbtn.SetToolTip(wx.ToolTip('Delete ROI (Shortcut key: d)'))
 
         self.trash_img = wx.ImageFromBitmap(eraser_bmp)
@@ -589,16 +587,17 @@ class trial2(wx.Frame):
         self.trash_img.SetOptionInt(wx.IMAGE_OPTION_CUR_HOTSPOT_Y, 1)
 
         plot_bmp = wx.Bitmap(r'resources/Baumgartner/chart_24.ico', wx.BITMAP_TYPE_ICO)
-        self.plotbtn = wx.BitmapButton(self.btnbar, -1, plot_bmp, style = wx.NO_BORDER)
+        self.plotbtn = wx.BitmapButton(self.btnbar1, -1, plot_bmp, style = wx.NO_BORDER)
         self.plotbtn.SetBitmapSelected( wx.Bitmap(r'resources/Baumgartner/chart_24_selected.bmp') )
         self.plotbtn.SetToolTip(wx.ToolTip('Quick plot (Shortcut key: q)'))
 
         report_bmp = wx.Bitmap(r'resources/Tango/save.ico', wx.BITMAP_TYPE_ICO)
         saving_bmp = wx.Bitmap(r'resources/Tango/saving.ico', wx.BITMAP_TYPE_ICO)
-        self.reportbtn = wx.BitmapButton(self.btnbar, -1, report_bmp, style = wx.NO_BORDER)
+        self.reportbtn = wx.BitmapButton(self.btnbar1, -1, report_bmp, style = wx.NO_BORDER)
         self.reportbtn.SetBitmapSelected( saving_bmp )
         self.reportbtn.SetToolTip(wx.ToolTip('Make a PDF Report and export as mat/npz file'))
 
+        # Create widgets on btnbar2
         self.ID_jump2anat = wx.NewId()
         self.ID_jump2avgmap = wx.NewId()
         self.ID_jump2eachmap = wx.NewId()
@@ -634,11 +633,18 @@ class trial2(wx.Frame):
             hbox3.Add(t, 0, wx.ALIGN_CENTER_VERTICAL|wx.RIGHT, 1)
         for t in self.btns[-3:]:
             hbox4.Add(t, 0, wx.ALIGN_CENTER_VERTICAL|wx.RIGHT, 1)
+       
+        # somehow SetMinSize had no effect but this works
+        hbox1.Add((1,26))
+        hbox2.Add((1,26))
+        hbox3.Add((1,26))
+        hbox4.Add((1,26))
+
         self.toolbar1.SetSizerAndFit(hbox1)
         self.toolbar2.SetSizerAndFit(hbox2)
-        self.btnbar.SetSizerAndFit(hbox3)
+        self.btnbar1.SetSizerAndFit(hbox3)
         self.btnbar2.SetSizerAndFit(hbox4)
-        
+
         # call a method to place other widgets, wich can move in resize event
         if parent.fitw.IsChecked():
             self.placepanels(None)
@@ -954,6 +960,7 @@ class trial2(wx.Frame):
 
         w = self.toolbar1.GetSizeTuple()[0]
 
+
         # figure out initial width
         if width_for_btns is None:
             if w < self.w:
@@ -977,7 +984,7 @@ class trial2(wx.Frame):
         WrapSizer = wx.WrapSizer()
         WrapSizer.Add(self.toolbar1)
         WrapSizer.Add(self.toolbar2)
-        WrapSizer.Add(self.btnbar)
+        WrapSizer.Add(self.btnbar1)
         WrapSizer.Add(self.btnbar2)
         WrapSizer.Add(self.display, proportion=1, flag=wx.EXPAND|wx.ALIGN_CENTER)
         self.SetSizer(WrapSizer)
@@ -995,7 +1002,7 @@ class trial2(wx.Frame):
         
         wb4, hb4 = self.b4resize = self.display.GetSizeTuple()
         ww, hw = self.GetSizeTuple()
-        self.xmargin = abs(ww - wb4)
+        self.xmargin = abs(ww - wb4) 
 
         self.placing = False
 
