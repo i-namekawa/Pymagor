@@ -24,7 +24,6 @@
 ##  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 ##  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-# auto PSF improvement. blob size input changed to pixels rather than SD
 # TODO: generate multi channel toy data and test alignment using different "Ref ch"
 # TODO: make the auto PSF back to plugin? PDF export part as well?
 
@@ -47,8 +46,10 @@ import scipy
 import scipy.ndimage as ndimage
 import scipy.io as sio
 from scipy.sparse.csgraph import _validation  ## for py2exe
-if int(scipy.__version__.split('.')[1])>11:
+try:
     from scipy.spatial import ConvexHull
+except ImportError:
+    ConvexHull = None
 
 import matplotlib
 # if myOS in ('Windows', 'Linux'): # until sip can be installed on OS X Darwin.
@@ -960,7 +961,6 @@ class trial2(wx.Frame):
 
         w = self.toolbar1.GetSizeTuple()[0]
 
-
         # figure out initial width
         if width_for_btns is None:
             if w < self.w:
@@ -977,8 +977,8 @@ class trial2(wx.Frame):
         
         # re-size display panel keeping the aspect
         self.ScalingFactor = width_for_btns / float(self.w)
-        display_w, display_h = self.w * self.ScalingFactor, self.h * self.ScalingFactor
-        self.display.SetMinSize(( display_w, display_h ))
+        imgCanvas_w, imgCanvas_h = self.w * self.ScalingFactor, self.h * self.ScalingFactor
+        self.display.SetMinSize(( imgCanvas_w, imgCanvas_h ))
         self.refresh_buf()
         
         WrapSizer = wx.WrapSizer()
@@ -994,7 +994,7 @@ class trial2(wx.Frame):
         self.Layout()
         
         # hack around the WrapSizer not respecting MinSize issue.
-        self.display.SetMinSize(( display_w, display_h ))
+        self.display.SetMinSize(( imgCanvas_w, imgCanvas_h ))
         self.Fit()
         self.Layout()
         
@@ -1006,15 +1006,16 @@ class trial2(wx.Frame):
 
         self.placing = False
 
-
     def frame_resize(self, event):
 
-        if self.need_resize:
-            wc, hc = self.GetSizeTuple()
-            dw, dh = self.DispSize
-            w = wc - self.xmargin
-            if hc > dh * 0.85:
-                w = dh * 0.85 * self.w / self.h
+        wc, hc = self.GetSizeTuple() 
+        # only width should be respected. users usually change width only
+        hc = wc * self.h / self.w    # keep aspect.
+        space_for_btns = wc - self.xmargin
+        
+        dw, dh = self.DispSize
+        if hc > dh * 0.85: # usually display has less vertical resolution.
+            space_for_btns = dh * 0.85 * self.w / self.h
 
         if event is not None:
             if event.GetId() == self.ID_fitw:
@@ -1022,8 +1023,6 @@ class trial2(wx.Frame):
             elif event.GetId() == self.ID_scaling1:
                 self.ScalingFactor = 1.0
                 space_for_btns = self.ScalingFactor * self.w
-            else:
-                space_for_btns = w
 
         self.placepanels(space_for_btns)
         self.need_resize = False
@@ -1219,61 +1218,70 @@ class trial2(wx.Frame):
             im = Image.frombytes('RGB',(w,h), buf)
             self.p.stdin.write(im.tobytes('jpeg','RGB'))
 
-    def autoPSFplot(self, blobthrs, blobsize, zstep, ROImax):
-
+    def autoPSFplot(self, autodetect, blobthrs, blobsize, zstep, ROImax):
+        'available only at raw frame view mode'
         fp, Foffset = self.changetitle(wantfp_offset=True)
+
         z = self.changetitle(wantz=True)
        
         data = opentif(fp, ch=self.ch)[::-1,:,:]
         h, w, nframes = data.shape
-
-        proj = data.std(axis=2)
-        proj = ndimage.gaussian_filter(proj,sigma=1.2)
-        beads = proj>proj.std()*blobthrs
-        labeled, nbeads = ndimage.label(beads)
-        #print 'nbeads', nbeads
-
-        # guess area of beads from input diameter
-        area = blobsize**2 # approx. with square
-        not_extreme = [n for n in np.arange(nbeads) if 0.25*area < (labeled==n).sum() < 2.5*area]
-        areas = [(labeled==n).sum() for n in not_extreme]
-        
         figure = plt.figure(figsize=[9,6])
-        ax1 = figure.add_subplot(221)
-        ax1.imshow(proj, 'gray')
-        plt.tight_layout()
-        ax2 = figure.add_subplot(222)
-        ax2.imshow(labeled)
-        figure.show()
 
-        MEDIAN = np.median(areas)
-        SD = np.std(areas)
-        low = MEDIAN - SD if MEDIAN - SD/2 > 0 else 0
-        high = MEDIAN + SD
-        
-        ax3 = figure.add_subplot(223)
-        frq, _x, ptch = ax3.hist(areas, facecolor='none')
-        ax3.plot([MEDIAN, MEDIAN],[0, frq.max()], 'c', linewidth=2)
-        ax3.plot([high, high],[0, frq.max()], 'm-.')
-        ax3.plot([low, low],[0, frq.max()], 'm-.')
+        if autodetect:
+            
+            proj = data.std(axis=2)
+            proj = ndimage.gaussian_filter(proj,sigma=1.2)
+            beads = proj>proj.std()*blobthrs
+            labeled, nbeads = ndimage.label(beads)
+            #print 'nbeads', nbeads
 
-        r = blobsize/2.0
-        for n in not_extreme:
+            # guess area of beads from input diameter
+            area = blobsize**2 # approx. with square
+            low, high = 0.25*area, 1.5*area
+            not_extreme = [n for n in np.arange(1,nbeads+1) if low < (labeled==n).sum() < high]
+            areas = [(labeled==n).sum() for n in not_extreme]
 
-            y,x = (labeled==n).nonzero()
-            _size = (labeled == n).sum()
+            if not areas:
+                Pymagor2.showmessage('no blobs found')
+                return
+            
+            ax1 = figure.add_subplot(221)
+            ax1.imshow(proj, 'gray')
+            ax1.set_title('STD across frames')
+            plt.tight_layout()
+            ax2 = figure.add_subplot(222)
+            ax2.imshow(labeled)
+            ax2.set_title('ndimage.label blobs')
+            figure.show()
 
-            if low < _size < high and \
-                r < y.mean() < h - r and \
-                r < x.mean() < w - r:
-                print n,
-                points = np.array([y,x]).T
+            MEDIAN = np.median(areas)
+            SD = np.std(areas)
+            # low = MEDIAN - SD if MEDIAN - SD > 10 else 10
+            # high = MEDIAN + SD
+            
+            ax3 = figure.add_subplot(223)
+            frq, _x, ptch = ax3.hist(areas, facecolor='none')
+            ax3.plot([MEDIAN, MEDIAN],[0, frq.max()], 'c', linewidth=2)
+            ax3.plot([high, high],[0, frq.max()], 'm-.')
+            ax3.plot([low, low],[0, frq.max()], 'm-.')
 
-                hull = ConvexHull(points)
-                roibuf = [(x,y) for y,x in points[hull.vertices]]
-                self.ROI.add(roibuf, str(z))
+            r = blobsize/2.0
+            for n in not_extreme:
 
-        print '\n'
+                y,x = (labeled==n).nonzero()
+                _size = (labeled == n).sum()
+
+                if  r < y.mean() < h - r and \
+                    r < x.mean() < w - r:
+                    print n,
+                    points = np.array([y,x]).T
+
+                    hull = ConvexHull(points)
+                    roibuf = [(x,y) for y,x in points[hull.vertices]]
+                    self.ROI.add(roibuf, str(z))
+
+            print '\n'
 
         # get raw fluorescent traces (not dF/F)
         traces = self.getdFoF(fp, dtype=np.uint16, offset=Foffset, raw=True)[0]
@@ -1282,21 +1290,15 @@ class trial2(wx.Frame):
         peaks = np.max(traces, axis=0)
 
         #baselines = stats.mode(np.round(traces))[0]
-        # Let's do without scipy!
-        u,  ind = np.unique(np.round(traces), return_inverse=True)
-        axis = 0
-        baselines = u[np.argmax(
-                np.apply_along_axis(
-                                    np.bincount,
-                                    axis,
-                                    ind.reshape(traces.shape),
-                                    None,
-                                    np.max(ind)+1
-                                    ),
-                    axis=axis
-                    )
-            ]
-        baselines = baselines.reshape(1,traces.shape[1])
+        # Let's do this without scipy!
+        uniq,  ind = np.unique(np.round(traces), return_inverse=True)
+        baselines = uniq[np.argmax( np.apply_along_axis(    np.bincount,
+                                                            0,
+                                                            ind.reshape(traces.shape),
+                                                            None,
+                                                            np.max(ind)+1
+                                                            ), axis=0) ]
+        baselines = baselines.reshape(1, traces.shape[1])
 
         #print baselines
         half_height = (peaks - baselines)/2.0
@@ -1314,12 +1316,16 @@ class trial2(wx.Frame):
         #     and single peak only.
         removeByPeakLoc = (traces.argmax(axis=0) <= nframes/5) + (nframes*4/5 <= traces.argmax(axis=0))
         half_height[:,removeByPeakLoc] = 0
-        maxcell = ROImax if (removeByPeakLoc==False).sum()>ROImax else (removeByPeakLoc==False).sum()
         by_height = half_height[0].argsort()[::-1]
-        #by_singlepeakness =
+        if blobthrs:
+            maxcell = ROImax if (removeByPeakLoc==False).sum()>ROImax else (removeByPeakLoc==False).sum()
+        else:
+            maxcell = len(self.ROI.data)
         good_cells = by_height[:maxcell]
-        #print good_cells.tolist()
 
+        if len(good_cells)==0:
+            Pymagor2.showmessage('no good ROIs found. A good ROI should have only one peak\nnear the center of stack')
+            return
 
         for n in good_cells:
             trace = traces[...,n]
@@ -1347,41 +1353,39 @@ class trial2(wx.Frame):
 
 
         # modify getPSF plugin
-        ax4 = figure.add_subplot(224)
-
+        if autodetect:
+            ax4 = figure.add_subplot(224)
+        else:
+            ax4 = figure.add_subplot(111)
         fontP = FontProperties()
         fontP.set_size('small')
 
-        # for legend, plot lines first
         for _n, n in enumerate(good_cells):
-            trace = traces[...,n]
-            # readable and fast np iter
-            # http://stackoverflow.com/questions/1589706/iterating-over-arbitrary-dimension-of-numpy-array
             color = cm.hsv(int(255*_n/(maxcell+1)))
-            ax4.plot(trace, color=color)
-            color = cm.hsv(int(255*n/(maxcell+1)))
-            _x = np.array(self.ROI.data[n])[:,0]
-            _y = np.array(self.ROI.data[n])[:,1]
-            ax1.plot(_x,_y,color=color)
-        ax1.axis([0,w,h,0]) # plot will modify imshow default coordinate
-        self.ROI.remove( [n for n in range(n_cell) if n not in good_cells] )
-        
-        # and plot the rest
-        for _n, n in enumerate(good_cells):
+            
+            if autodetect:
+                _x = np.array(self.ROI.data[n])[:,0]
+                _y = np.array(self.ROI.data[n])[:,1]
+                ax1.plot(_x,_y,color=color)
+            
             trace = traces[...,n]
+            ax4.plot(trace, color=color)
             x = np.nonzero([trace > thrs[n]])[1]
             y = trace[x]
-            color = cm.hsv(int(255*_n/(maxcell+1)))
-            ax4.plot (x, y, color=color, linewidth=3)
-
-            ax4.text(x.min()+1.2, thrs[n]*(1 + 0.4*(1-2*(_n%2))), 'Blob%d = %3.2f' % (_n+1, PSF[_n]), color='k', fontsize=9)
-
+            _label = 'Blob%0d'%(_n+1)
+            ax4.plot (x, y, color=color, linewidth=3, label=_label)
+            ax4.text(x.min()+1.2, thrs[n]*(1 + 0.4*(1-2*(_n%2))), _label+'= %3.2f' % PSF[_n], color='k', fontsize=9)
             ax4.plot(np.tile(baselines, (traces.shape))[:,n], color=color)
             ax4.plot(x,np.tile(thrs[n],x.shape), color=color)
 
-        label = ['Blob%d' % (n+1) for n in range(maxcell)]
-        ax4.legend(label, loc='upper left', frameon=False, ncol=5, prop=fontP)
-        ax4.set_title('Median PSF = %3.2f micron (%0.2f micron z-step)' % (np.median(PSF), zstep), fontsize=9)
+        if autodetect:
+            ax1.axis([0,w,h,0]) # plot will modify imshow's default axes
+
+        # we had to index ROI.data with [n] for plotting. now ready to remove bad blobs
+        self.ROI.remove( [n for n in range(n_cell) if n not in good_cells] )
+
+        ax4.legend(loc='upper left', frameon=False, ncol=3, prop=fontP)
+        ax4.set_title('Median PSF = %3.3f micron (%0.2f micron z-step)' % (np.median(PSF), zstep), fontsize=11)
         ax4.set_ylabel('Raw fluorescence value')
         ax4.set_xlabel('Frames')
 
@@ -1539,7 +1543,8 @@ class trial2(wx.Frame):
         ctxmenu.Check(self.ID_recmovie, self.record)
 
         ctxmenu.AppendSeparator()
-        ctxmenu.Append(self.ID_AutoPSF, 'AutoPSF')
+        if self.TVch in [0, 1, 2, 3, 4]:
+            ctxmenu.Append(self.ID_AutoPSF, 'AutoPSF')
 
         if CntxPlugin.keys() != []:
 
@@ -1569,18 +1574,21 @@ class trial2(wx.Frame):
         webbrowser.open(data_path)
 
     def OnCtxAutoPSF(self, event):
+        if ConvexHull is not None:
 
-        # prepare the figure window
-        dlg = beads_param(self.parent)
-        dlg.CentreOnParent()
+            dlg = beads_param(self.parent, self.ROI.data)
+            dlg.CentreOnParent()
 
-        if dlg.ShowModal() == wx.ID_OK:
-            blobthrs = float( dlg.blobthrs.GetValue() )
-            blobsize = float( dlg.blobsize.GetValue() )
-            zstep = float( dlg.zstep.GetValue() )
-            ROImax = int( dlg.ROImax.GetValue() )
-            self.autoPSFplot(blobthrs, blobsize, zstep, ROImax)
+            if dlg.ShowModal() == wx.ID_OK:
+                autodetect = float( dlg.autodetect.GetValue() )
+                blobthrs = float( dlg.blobthrs.GetValue() )
+                blobsize = float( dlg.blobsize.GetValue() )
+                zstep = float( dlg.zstep.GetValue() )
+                ROImax = int( dlg.ROImax.GetValue() )
             dlg.Destroy()
+            self.autoPSFplot(autodetect, blobthrs, blobsize, zstep, ROImax)
+        else:
+            Pymagor2.showmessage('Update scipy to enable AutoPSF (ConvexHull needed)')
 
     def OnCtxRec(self, event):
 
@@ -4237,30 +4245,43 @@ class Movie_dialog(wx.Dialog):
 
 class beads_param(wx.Dialog):
 
-    def __init__(self, parent):
+    def __init__(self, parent, auto):
         wx.Dialog.__init__(self, parent,
                         title='PSF auto detection',
                         style=wx.DEFAULT_DIALOG_STYLE|wx.STAY_ON_TOP)
         # default
         blobthrs = '4' # 2 SD for thresholding the blob image
-        blobsize = '30'   # 1-4 x std of blob sizes, determine blob detection range
+        blobsize = '30'# blob diameter in pixels
         zstep = '0.5'  # 0.5 micron step in z
         ROImax = '10'  # max
+        
+        self.autodetect = wx.CheckBox(self, -1, 'auto blob detection. uncheck to use existing ROIs')
+        self.autodetect.Bind(wx.EVT_CHECKBOX, self.OnCheck)
+
+        if auto:
+            self.autodetect.SetValue(False)
+        else:
+            self.autodetect.SetValue(True)
+            self.autodetect.Enable(False)
 
         self.blobthrs = wx.TextCtrl(self, -1, blobthrs, style=wx.TE_RIGHT)
         self.blobsize = wx.TextCtrl(self, -1, blobsize, style=wx.TE_RIGHT)
         self.zstep = wx.TextCtrl(self, -1, zstep, style=wx.TE_RIGHT)
         self.ROImax = wx.TextCtrl(self, -1, ROImax, style=wx.TE_RIGHT)
 
-        gbs = wx.GridBagSizer(3,2)
-        gbs.Add( wx.StaticText(self,-1,'Threshold as SD x'), (0,0), flag=wx.ALIGN_CENTRE)
-        gbs.Add( self.blobthrs, (0,1), flag=wx.ALIGN_CENTRE)
-        gbs.Add( wx.StaticText(self,-1,'Beads diameter in pixels'), (1,0), flag=wx.ALIGN_CENTRE)
-        gbs.Add( self.blobsize, (1,1),  flag=wx.ALIGN_CENTRE)
-        gbs.Add( wx.StaticText(self,-1,'Z step in micron'), (2,0), flag=wx.ALIGN_CENTRE)
-        gbs.Add( self.zstep, (2,1),  flag=wx.ALIGN_CENTRE)
-        gbs.Add( wx.StaticText(self,-1,'max # of Beads to detect'), (3,0), flag=wx.ALIGN_CENTRE)
-        gbs.Add( self.ROImax, (3,1),  flag=wx.ALIGN_CENTRE)
+        gbs = wx.GridBagSizer(4,2)
+        
+        gbs.Add( wx.StaticText(self,-1,'Z step in micron'), (0,0), flag=wx.ALIGN_CENTRE)
+        gbs.Add( self.zstep, (0,1),  flag=wx.ALIGN_CENTRE)
+        
+        gbs.Add( self.autodetect, (1,0), span=(1,2))
+        
+        gbs.Add( wx.StaticText(self,-1,'Threshold as SD x'), (2,0), flag=wx.ALIGN_CENTRE)
+        gbs.Add( self.blobthrs, (2,1), flag=wx.ALIGN_CENTRE)
+        gbs.Add( wx.StaticText(self,-1,'Beads diameter in pixels'), (3,0), flag=wx.ALIGN_CENTRE)
+        gbs.Add( self.blobsize, (3,1),  flag=wx.ALIGN_CENTRE)
+        gbs.Add( wx.StaticText(self,-1,'max # of Beads to detect'), (4,0), flag=wx.ALIGN_CENTRE)
+        gbs.Add( self.ROImax, (4,1),  flag=wx.ALIGN_CENTRE)
 
         btnsizer = self.CreateButtonSizer(wx.OK|wx.CANCEL)
 
@@ -4268,7 +4289,15 @@ class beads_param(wx.Dialog):
         vbox.Add(gbs, 0, wx.ALIGN_CENTRE|wx.ALL, 5)
         vbox.Add(btnsizer, 0, wx.ALIGN_CENTRE|wx.ALL, 5)
         self.SetSizer(vbox)
+        self.OnCheck(None)
         self.Fit()
+
+    def OnCheck(self, event):
+        flag = self.autodetect.IsChecked()
+        self.blobthrs.Enable(flag)
+        self.blobsize.Enable(flag)
+        self.ROImax.Enable(flag)
+        
 
 
 class PlaneOdor_dialog(wx.Dialog):
