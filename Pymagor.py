@@ -1146,7 +1146,7 @@ class trial2(wx.Frame):
         self.changetitle()
 
     def reset_cursor(self):
-        self.SetCursor(wx.StockCursor(wx.CURSOR_DEFAULT))
+        self.display.SetCursor(wx.StockCursor(wx.CURSOR_DEFAULT))
         self.refresh_buf()
         self.Refresh()
         self.display.SetFocus()
@@ -2804,7 +2804,7 @@ class trial2(wx.Frame):
             self.OnQuickPlot(event)
         elif (key == 87 # 'w' for wheel scaling the window
               and not self.scaling):
-            self.SetCursor(wx.StockCursor(wx.CURSOR_SIZENWSE))
+            self.display.SetCursor(wx.StockCursor(wx.CURSOR_SIZENWSE))
             self.scaling = True
         elif key == 88: # 'x' for ROI toggling mode
             self.OnCtxROImode(None)
@@ -2927,7 +2927,7 @@ class trial2(wx.Frame):
                 self.zoomingmode = True
                 self.st_x = self.st_y = None
                 self.panmode = False
-                self.SetCursor(wx.StockCursor(magnifier))
+                self.display.SetCursor(wx.StockCursor(magnifier))
                 self.display.SetFocus()
         #print 'zooming mode is ', self.zoomingmode
 
@@ -2945,7 +2945,7 @@ class trial2(wx.Frame):
             self.reset_cursor()
         elif not self.zoomingmode and self.zoomrect != (0,0,self.w,self.h):
             self.panmode = True
-            self.SetCursor(wx.StockCursor(wx.CURSOR_HAND))
+            self.display.SetCursor(wx.StockCursor(wx.CURSOR_HAND))
             self.display.SetFocus()
         #print 'pan mode is ', self.panmode
 
@@ -2988,7 +2988,7 @@ class trial2(wx.Frame):
                     self.ROI.add(self.roibuf, str(z))
             else:
                 # print 'Start drawing ROI'
-                self.SetCursor(wx.StockCursor(wx.CURSOR_PENCIL))
+                self.display.SetCursor(wx.StockCursor(wx.CURSOR_PENCIL))
                 self.drawing = True
                 self.roibuf = []
             self.display.SetFocus()
@@ -3008,7 +3008,7 @@ class trial2(wx.Frame):
                 self.reset_cursor()
             elif not self.drawing:
                 self.moving = True
-                self.SetCursor(wx.StockCursor(wx.CURSOR_SIZING))
+                self.display.SetCursor(wx.StockCursor(wx.CURSOR_SIZING))
                 self.display.SetFocus()
 
     def OnROITrash(self, event):
@@ -3026,7 +3026,7 @@ class trial2(wx.Frame):
                 self.trashing = False
             elif not self.drawing:
                 self.trashing = True
-                self.SetCursor(wx.CursorFromImage(self.trash_img))
+                self.display.SetCursor(wx.CursorFromImage(self.trash_img))
 
 
 class MainFrame(wx.Frame):
