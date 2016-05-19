@@ -496,7 +496,7 @@ class trial2(wx.Frame):
         self.toolbar1.SetToolTip(wx.ToolTip(info))
 
         # Create widgets on Toolbar 1
-        txt_z = wx.StaticText(self.toolbar1, -1, 'z:')
+        txt_z = wx.StaticText(self.toolbar1, -1, '#:')
         self.scz = wx.SpinCtrl(self.toolbar1, -1, '0', size=(60,20))
         self.scz.SetRange(0, self.z-1)
 
@@ -3474,7 +3474,7 @@ class MainFrame(wx.Frame):
     ## Event handlars
     # File
     def OnOpen(self, event):
-        dlg = wx.FileDialog(self, 'Select a file', '', '',
+        dlg = wx.FileDialog(self, 'Select a file', '', self.lastdir,
             'file types (*.tif;*.ior;*.csv;*.xls;*.offset)|*.tif;*.ior;*.csv;*.xls;*.offset',
                             wx.OPEN)
         if dlg.ShowModal() == wx.ID_OK:
@@ -3498,7 +3498,8 @@ class MainFrame(wx.Frame):
         self.open_filetype()
 
     def OnTagDisp(self, event):
-        dlg = wx.FileDialog(self, 'Select a file', '', '',
+
+        dlg = wx.FileDialog(self, 'Select a file', '', self.lastdir,
                                 'file types (*.tif;*.ior)|*.tif;*.ior', wx.OPEN)
         if dlg.ShowModal() == wx.ID_OK:
             fp = dlg.GetPath()
@@ -5234,7 +5235,7 @@ def ComputeThisPlane(data_path, tags, howmanyframe, need_AvgTr, need_MaxPr, anat
             ind = np.linspace(0, tmp.size-1, 100).astype(int)
             fr2load_anat = tmp[ind]
             frames2load = np.unique(np.hstack((fr2load_anat, fr2load_pre, fr2load_res)))
-            print 'To save memory, eaqually spaced 100 frames + F and Res period frames are used for anatomy image. Total=%d frames', frames2load.size
+            print 'To save memory, eaqually spaced 100 frames + F and Res period frames are used for anatomy image. Total=%d frames' % frames2load.size
 
         loadedframes = opentif(fp, dtype, filt=None, frames2load=frames2load, ch=ch, nch=nch, nframes=nframes) - Fnoise
 
