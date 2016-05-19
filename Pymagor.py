@@ -3071,6 +3071,7 @@ class MainFrame(wx.Frame):
         self.log.SetToolTip(wx.ToolTip(info))
         sys.stdout = RedirectText(self.log)
 
+        if myOS is 'Linux':
             self.log.SetFont(wx.Font(9, wx.SWISS, wx.NORMAL, wx.NORMAL))
         if verbose:
             print 'Running on %s' % sys.version
