@@ -12,10 +12,11 @@ For more details, check [the wiki documentation] (https://github.com/i-namekawa/
 
 Supported platforms
 ------
-Pymagor is built upon Python and cross-platform libraries (all 64-bit ready). Alghough the main target platform is Windows 7, Ubuntu and MacOSX (darwin) seem to work ok with some minor problems.
-* MS-Windows XP/7/8 (Win10? never tested)
-* (Ubuntu 14.04: It can run from source with some GTK warnings)
-* (Mac: It runs from source on Darwin with wxPython v3.0 but with some minor wxPython errors. 
+Pymagor is built upon Python and cross-platform libraries (all 64-bit ready) and works on Windows/Linux/Mac.
+
+* MS-Windows XP/7
+* Ubuntu 14.04 / Linux Mint 17: Working ok
+* Mac: Woring on Darwin with wxPython v3.0
 
 
 Installation
@@ -29,7 +30,7 @@ The 64-bit binary is possible to build but was too huge (>200 MB, due to numpy/s
 
 ### Run from source (for development, on Linux/Mac, and to run on 64-bit Python)
 
-1. Install the latest Python 2.7 series. Anaconda 64-bit Python 2.7 is recommended. WinPython is no longer recommended because the latest WinPython2.7 still uses numpy 1.9.3 but the latest tifffile.py needs numpy 1.10.
+1. Install the latest Python 2.7 series. Anaconda 64-bit Python 2.7 is recommended for all platforms (Windows/Ubuntu/Mac). (WinPython is no longer recommended because the latest WinPython2.7 still uses numpy 1.9.3 but the latest tifffile.py needs numpy 1.10)
 
 2. Install all the dependencies (see below for Anaconda example)
   * pillow
