@@ -43,7 +43,7 @@ The 64-bit binary is possible to build but was too huge (>200 MB, due to numpy/s
   * yapsy
   * tifffile.py (ver 2016.4.13 or newer. Note that `pip install tifffile` will install a slightly older version which may require an older numpy than v1.10.)
 
-3. Clone the git repogitory (https://github.com/i-namekawa/Pymagor.git or download zip) and run Pymagor2.py. On MaxOS, run with `pythonw` rather than `python`.
+3. Clone the git repogitory (https://github.com/i-namekawa/Pymagor.git or download zip) and run Pymagor2.py. On Mac, run with `pythonw` rather than `python`.
 
 #### Conda command to set up Python 2.7.* (64-bit) for Pymagor
 
