@@ -193,8 +193,7 @@ class DragableGrid(gridlib.Grid):
     
     #  following 4 methods from http://wiki.wxpython.org/GridCellChoiceEditor
     def OnGridEditorCreated(self, event):
-        Row = event.GetRow()
-        Col = event.GetCol()
+        Row,Col  = event.GetRow(), event.GetCol()
         if Col == 5: # 5th col is where GridCellChoiceEditors are
             self.comboBox = event.GetControl()
             self.comboBox.Bind(wx.EVT_COMBOBOX, self.OnGridComboBox)
@@ -230,7 +229,7 @@ class DragableGrid(gridlib.Grid):
 
 class ROImanager(wx.Frame):
  
-    def __init__(self, parent, roi, pos):
+    def __init__(self, parent, roi, pos, size):
         style = wx.DEFAULT_MINIFRAME_STYLE
         wx.Frame.__init__(self, parent, -1, "ROI manager", style=style, pos=pos)
         self.parent = parent
@@ -269,7 +268,10 @@ class ROImanager(wx.Frame):
         self.SetSizer(framesizer)
         self.Fit() # PyScrolledWindow seems to interfare with the height estimation
         w,h = self.GetSize()  # so, manually set y
-        self.SetSize((w+20,h+350)) #+20 prevent vertical scroll bar to appear in grid
+        if size:
+            self.SetSize(size)
+        else:
+            self.SetSize((w+20,h+350)) #+20 prevent vertical scroll bar to appear in grid
         panel.SetBestSize()
         
         self.Show()

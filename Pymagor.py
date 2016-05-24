@@ -428,6 +428,8 @@ class trial2(wx.Frame):
             self.img = imgdict[::-1,:,:]
         self.tag = tag
         self.lock = lock
+        self.ROImanager_lastpos = None
+        self.ROImanager_lastsize = None
 
         if hasattr(parent, 'bl'):
             self.Launcher = parent.bl
@@ -715,11 +717,13 @@ class trial2(wx.Frame):
             self.drawROIbtn.Enable(False)
             self.moveROIbtn.Enable(False)
             self.trashROIbtn.Enable(False)
+            if not self.ROImanager_lastpos:
+                x,y = self.GetPosition()
+                w,h = self.GetSize()
+                self.ROImanager_lastpos = (x+w, y)
 
-            x,y = self.GetPosition()
-            w,h = self.GetSize()
-            pos = (x+w, y)
-            self.ROImngrframe = ROImanager.ROImanager(self, self.ROI, pos=pos)
+            self.ROImngrframe = ROImanager.ROImanager(self, self.ROI, 
+                pos=self.ROImanager_lastpos, size=self.ROImanager_lastsize)
             self.ROImngrframe.Show()
         elif not togglestate and hasattr(self, 'ROImngrframe'):
             if self.ROImngrframe.IsShown():
@@ -727,6 +731,8 @@ class trial2(wx.Frame):
                 self.moveROIbtn.Enable(True)
                 self.trashROIbtn.Enable(True)
                 self.ROImngrframe.Destroy()
+                self.ROImanager_lastpos = self.ROImngrframe.GetPosition()
+                self.ROImanager_lastsize = self.ROImngrframe.GetSize()
                 del self.ROImngrframe
         elif not self.ROI.data and togglestate:
             self.ROImngr.SetValue(False)
@@ -2584,7 +2590,7 @@ class trial2(wx.Frame):
         nx, ny = self.normxy(event)
         delta = event.GetWheelRotation()
         if delta:
-            delta = delta/abs(delta)  # limit to -1 to +1 range
+            delta = int(delta/abs(delta))  # limit to -1 or +1
 
         if (not event.IsButton() and ## only when mouse moved
             event.GetWheelDelta() == 0):
@@ -2716,7 +2722,7 @@ class trial2(wx.Frame):
 
         # update (x, y, pixel value) in the parameter pane
         if 0<=nx<self.w and 0<=ny<self.h:
-            value = self.img[self.h-(ny+1),nx,self.curframe]
+            value = self.img[self.h-(ny+1), nx, self.curframe]
             label = '(x,y,value) = (%d, %d, %1.2f)' % (nx,ny,value)
 
             roi_in = self.insideROI(nx,ny)  # show some ROI info also
@@ -3888,7 +3894,7 @@ Mouse gestures
 - Swipe to left or right with left-button:
     switch between the view modes
 - Wheel up/down while holding right-button:
-    increase/decrease the spin control "z" on the top-left to
+    increase/decrease the spin control "#" on the top-left to
     switch between trials or frames'''
 
             info.License = '''Copyright (c) 2011-, Iori Namekawa.
