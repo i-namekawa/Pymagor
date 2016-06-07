@@ -88,7 +88,7 @@ from opentif import opentif, get_tags, get_all_tags
 from create_pymagorsheet_v2 import create_csv
 
 # Global variables
-release_version = '2.7.3'
+release_version = '2.7.4'
 with open('resources/version.info', 'r') as f:
     __version__ = f.readline().splitlines()[0]
 
