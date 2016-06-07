@@ -2042,7 +2042,7 @@ class trial2(wx.Frame):
                 
         
         if self.parent.export_needplotting.IsChecked():
-            dlg = wx.MessageDialog(None, 'Exported successfully. Close plots?', style=wx.YES_NO)
+            dlg = wx.MessageDialog(self.Parent, 'Exported successfully. Close plots?', style=wx.YES_NO)
             if dlg.ShowModal() == wx.ID_YES:
                 self.Parent.OnCloseAll(None)
             dlg.Destroy()
@@ -4401,7 +4401,7 @@ class ParamsPanel(wx.Panel):
         self.sc_resE.SetValue(durres[1])
         self.sc_resE.Bind(wx.EVT_SPINCTRL, self.OnSpin)
 
-        wx.StaticText(self, -1, 'Background noise offset', (x+5,y+28+25))
+        wx.StaticText(self, -1, 'Background offset', (x+5,y+28+25))
         self.IDsc_Fnoise = wx.NewId()
         self.sc_Fnoise = wx.SpinCtrl(self, self.IDsc_Fnoise, '', (x+126+5,y+25+25), scsize)
         self.sc_Fnoise.SetRange(0,256**2-1)
@@ -4432,7 +4432,7 @@ class ParamsPanel(wx.Panel):
         self.sc_cmax.Bind(wx.EVT_SPINCTRL, self.OnSpin)
 
         h += 30
-        self.cutoff = wx.CheckBox(self, -1, 'Cutoff dF/F below:',(x+8,h+y))
+        self.cutoff = wx.CheckBox(self, -1, 'Cutoff dF/F below',(x+8,h+y))
         self.Bind(wx.EVT_CHECKBOX, self.OnCheck, self.cutoff)
         
         if platform.system() == 'Linux':
